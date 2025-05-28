@@ -360,7 +360,7 @@ const PlayerDashboard = () => {
                   <div className="space-y-4">
                     <div>
                       <Label className="text-white">Your Finishing Position</Label>
-                      <Select onValueChange={setSelectedPosition}>
+                      <Select value={selectedPosition} onValueChange={setSelectedPosition}>
                         <SelectTrigger className="bg-white/10 border-white/20 text-white">
                           <SelectValue placeholder="Select your position" />
                         </SelectTrigger>
@@ -395,7 +395,7 @@ const PlayerDashboard = () => {
                   <div className="space-y-4 pt-4 border-t border-white/20">
                     <div>
                       <Label className="text-white">Vote for MVP</Label>
-                      <Select onValueChange={setSelectedMVP}>
+                      <Select value={selectedMVP} onValueChange={setSelectedMVP}>
                         <SelectTrigger className="bg-white/10 border-white/20 text-white">
                           <SelectValue placeholder="Select MVP (not yourself)" />
                         </SelectTrigger>
