@@ -31,7 +31,7 @@ interface TournamentData {
   players: Player[];
   rounds: Round[];
   currentRound: number;
-  status: 'waiting' | 'active' | 'completed';
+  status: 'waiting' | 'active' | 'completed' | 'deleted';
 }
 
 const PlayerDashboard = () => {
@@ -296,6 +296,36 @@ const PlayerDashboard = () => {
     </div>;
   }
 
+  // Handle deleted tournament
+  if (tournament.status === 'deleted') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <Card className="bg-white/10 backdrop-blur-sm border-white/20 text-white text-center max-w-md mx-4">
+          <CardHeader>
+            <div className="p-4 bg-red-600/20 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+              <Trophy className="h-8 w-8 text-red-400" />
+            </div>
+            <CardTitle>Tournament Closed</CardTitle>
+            <CardDescription className="text-red-200">
+              This tournament has been closed by the administrator.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-white/70 mb-6">
+              Please request a new invitation link to join another tournament.
+            </p>
+            <Button 
+              onClick={() => navigate('/')}
+              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+            >
+              Return to Home
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const currentPlayer = getCurrentPlayer();
   const currentRound = getCurrentRound();
   const leaderboard = getSortedLeaderboard();
@@ -314,13 +344,18 @@ const PlayerDashboard = () => {
                 Round {tournament.currentRound + 1} Active
               </Badge>
             )}
+            {tournament.status === 'completed' && (
+              <Badge className="mt-2 bg-blue-600 text-white">
+                Tournament Completed
+              </Badge>
+            )}
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         {tournament.status === 'waiting' ? (
-          <Card className="bg-white/10 backdrop-blur-sm border-white/20 text-white text-center">
+          <Card className="bg-white/10 backdrop-blur-sm border-white/20 text-white">
             <CardHeader>
               <div className="p-4 bg-blue-600/20 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                 <Timer className="h-8 w-8 text-blue-400" />
@@ -355,6 +390,70 @@ const PlayerDashboard = () => {
               </div>
             </CardContent>
           </Card>
+        ) : tournament.status === 'completed' ? (
+          /* Final Leaderboard View */
+          <div className="text-center mb-8">
+            <Card className="bg-white/10 backdrop-blur-sm border-white/20 text-white">
+              <CardHeader>
+                <div className="p-4 bg-yellow-600/20 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                  <Trophy className="h-8 w-8 text-yellow-400" />
+                </div>
+                <CardTitle>Tournament Complete!</CardTitle>
+                <CardDescription className="text-purple-200">
+                  Final results are shown below
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {leaderboard.map((player, index) => (
+                    <div 
+                      key={player.id}
+                      className={`p-4 rounded-lg border ${
+                        player.id === playerId 
+                          ? 'bg-purple-600/30 border-purple-400' :
+                        index === 0 
+                          ? 'bg-gradient-to-r from-yellow-600/30 to-orange-600/30 border-yellow-500/50' 
+                          : 'bg-white/10 border-white/20'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center space-x-4">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${
+                            index === 0 ? 'bg-yellow-500 text-black' :
+                            index === 1 ? 'bg-gray-400 text-black' :
+                            index === 2 ? 'bg-amber-600 text-white' :
+                            'bg-white/30 text-white'
+                          }`}>
+                            {index + 1}
+                          </div>
+                          <div>
+                            <div className="flex items-center">
+                              <span className="font-semibold text-lg">{player.nickname}</span>
+                              {index === 0 && <Crown className="h-5 w-5 ml-2 text-yellow-500" />}
+                              {player.id === playerId && <span className="text-sm ml-2 text-purple-300">(You)</span>}
+                            </div>
+                            <div className="text-sm text-white/70">
+                              {player.mvpVotes} MVP votes
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-bold text-xl">{player.totalPoints}</div>
+                          <div className="text-sm text-white/70">final points</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <Button 
+                  onClick={() => navigate('/')}
+                  className="w-full mt-6 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                >
+                  Return to Home
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         ) : (
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Left Column - Race Results */}

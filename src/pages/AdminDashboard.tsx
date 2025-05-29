@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -31,7 +30,7 @@ interface TournamentData {
   players: Player[];
   rounds: Round[];
   currentRound: number;
-  status: 'waiting' | 'active' | 'completed';
+  status: 'waiting' | 'active' | 'completed' | 'deleted';
 }
 
 const AdminDashboard = () => {
@@ -119,6 +118,37 @@ const AdminDashboard = () => {
     });
   };
 
+  const closeTournament = () => {
+    if (!tournament) return;
+
+    const updatedTournament = { ...tournament, status: 'completed' as const };
+    setTournament(updatedTournament);
+    localStorage.setItem(`tournament_${tournament.id}`, JSON.stringify(updatedTournament));
+    
+    toast({
+      title: "Tournament closed!",
+      description: "Players can now view the final leaderboard.",
+    });
+  };
+
+  const deleteTournament = () => {
+    if (!tournament) return;
+
+    // Mark tournament as deleted
+    const deletedTournament = { ...tournament, status: 'deleted' as const };
+    localStorage.setItem(`tournament_${tournament.id}`, JSON.stringify(deletedTournament));
+    
+    toast({
+      title: "Tournament deleted",
+      description: "All players have been notified that the tournament was closed.",
+    });
+    
+    // Navigate back to home after a short delay
+    setTimeout(() => {
+      navigate('/');
+    }, 2000);
+  };
+
   const calculatePoints = (position: number, totalPlayers: number): number => {
     const maxPoints = totalPlayers * 2;
     return Math.max(1, maxPoints - (position - 1) * 2);
@@ -175,6 +205,8 @@ const AdminDashboard = () => {
               className={
                 tournament.status === 'active' 
                   ? 'bg-green-600 text-white' 
+                  : tournament.status === 'completed'
+                  ? 'bg-blue-600 text-white'
                   : 'bg-white/20 text-white'
               }
             >
@@ -205,7 +237,9 @@ const AdminDashboard = () => {
                 <div>
                   <p className="text-sm text-white/70">Current Round</p>
                   <p className="text-lg font-semibold">
-                    {tournament.status === 'waiting' ? 'Not Started' : `Round ${tournament.currentRound + 1}`}
+                    {tournament.status === 'waiting' ? 'Not Started' : 
+                     tournament.status === 'completed' ? 'Tournament Completed' :
+                     `Round ${tournament.currentRound + 1}`}
                   </p>
                 </div>
                 {tournament.status === 'active' && (
@@ -218,33 +252,35 @@ const AdminDashboard = () => {
             </Card>
 
             {/* Invite Link */}
-            <Card className="bg-white/10 backdrop-blur-sm border-white/20 text-white">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Share2 className="h-5 w-5 mr-2" />
-                  Invite Players
-                </CardTitle>
-                <CardDescription className="text-purple-200">
-                  Share this link for players to join
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-2">
-                  <Input 
-                    value={tournament.inviteLink}
-                    readOnly
-                    className="bg-white/10 border-white/20 text-white text-sm"
-                  />
-                  <Button 
-                    onClick={copyInviteLink}
-                    size="sm"
-                    className="bg-white/20 hover:bg-white/30"
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            {tournament.status !== 'completed' && tournament.status !== 'deleted' && (
+              <Card className="bg-white/10 backdrop-blur-sm border-white/20 text-white">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Share2 className="h-5 w-5 mr-2" />
+                    Invite Players
+                  </CardTitle>
+                  <CardDescription className="text-purple-200">
+                    Share this link for players to join
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex gap-2">
+                    <Input 
+                      value={tournament.inviteLink}
+                      readOnly
+                      className="bg-white/10 border-white/20 text-white text-sm"
+                    />
+                    <Button 
+                      onClick={copyInviteLink}
+                      size="sm"
+                      className="bg-white/20 hover:bg-white/30"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Tournament Controls */}
             <Card className="bg-white/10 backdrop-blur-sm border-white/20 text-white">
@@ -264,11 +300,38 @@ const AdminDashboard = () => {
                 )}
                 
                 {tournament.status === 'active' && (
+                  <>
+                    <Button 
+                      onClick={endCurrentRound}
+                      className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700"
+                    >
+                      End Current Round
+                    </Button>
+                    <Button 
+                      onClick={closeTournament}
+                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                    >
+                      <Trophy className="h-4 w-4 mr-2" />
+                      Close Tournament
+                    </Button>
+                  </>
+                )}
+
+                {tournament.status === 'completed' && (
+                  <div className="text-center py-4">
+                    <Trophy className="h-12 w-12 mx-auto mb-4 text-yellow-500" />
+                    <p className="text-green-300 font-medium">Tournament Completed!</p>
+                    <p className="text-sm text-white/70">Final leaderboard is shown to all players</p>
+                  </div>
+                )}
+
+                {(tournament.status === 'waiting' || tournament.status === 'active' || tournament.status === 'completed') && (
                   <Button 
-                    onClick={endCurrentRound}
-                    className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700"
+                    onClick={deleteTournament}
+                    variant="destructive"
+                    className="w-full"
                   >
-                    End Current Round
+                    Delete Tournament
                   </Button>
                 )}
               </CardContent>
