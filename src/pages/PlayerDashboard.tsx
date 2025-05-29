@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -260,13 +259,24 @@ const PlayerDashboard = () => {
   };
 
   const getAvailablePositions = () => {
-    const currentRound = getCurrentRound();
-    if (!currentRound || !tournament) return [];
+    if (!tournament) return [];
     
-    const takenPositions = Object.values(currentRound.positions);
+    const currentRound = getCurrentRound();
+    const totalPlayers = tournament.players.length;
     const availablePositions = [];
     
-    for (let i = 1; i <= tournament.players.length; i++) {
+    // If there's no current round or no positions taken yet, show all positions
+    if (!currentRound) {
+      for (let i = 1; i <= totalPlayers; i++) {
+        availablePositions.push(i);
+      }
+      return availablePositions;
+    }
+    
+    // If there's a current round, filter out taken positions
+    const takenPositions = Object.values(currentRound.positions);
+    
+    for (let i = 1; i <= totalPlayers; i++) {
       if (!takenPositions.includes(i)) {
         availablePositions.push(i);
       }
