@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -21,6 +20,7 @@ interface TournamentData {
   name: string;
   participantCount: number;
   inviteLink: string;
+  inviteCode: string;
   players: Player[];
   rounds: any[];
   currentRound: number;
@@ -36,23 +36,36 @@ const JoinTournament = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    console.log('Looking for tournament with invite code:', inviteCode);
+    
     // Find tournament by invite code
     const tournaments = localStorage.getItem('tournaments');
     if (tournaments) {
       const tournamentList = JSON.parse(tournaments);
+      console.log('Available tournaments:', tournamentList);
+      
       const foundTournament = tournamentList.find((t: any) => 
-        t.inviteLink.includes(inviteCode)
+        t.inviteCode === inviteCode
       );
+      
+      console.log('Found tournament:', foundTournament);
       
       if (foundTournament) {
         const tournamentData = localStorage.getItem(`tournament_${foundTournament.id}`);
         if (tournamentData) {
-          setTournament(JSON.parse(tournamentData));
+          const parsedTournament = JSON.parse(tournamentData);
+          console.log('Tournament data:', parsedTournament);
+          setTournament(parsedTournament);
+        } else {
+          console.log('No tournament data found for ID:', foundTournament.id);
+          setError('Tournament data not found.');
         }
       } else {
+        console.log('No tournament found with invite code:', inviteCode);
         setError('Tournament not found or invite link is invalid.');
       }
     } else {
+      console.log('No tournaments found in localStorage');
       setError('Tournament not found or invite link is invalid.');
     }
   }, [inviteCode]);

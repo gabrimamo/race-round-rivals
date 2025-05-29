@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +13,7 @@ interface Tournament {
   participantCount: number;
   createdAt: string;
   inviteLink: string;
+  inviteCode: string;
   status: 'waiting' | 'active' | 'completed';
 }
 
@@ -35,12 +35,14 @@ const Index = () => {
   const createTournament = () => {
     if (!tournamentName.trim()) return;
 
+    const inviteCode = Math.random().toString(36).substring(2, 15);
     const newTournament: Tournament = {
       id: Math.random().toString(36).substring(2, 15),
       name: tournamentName,
       participantCount,
       createdAt: new Date().toISOString(),
-      inviteLink: `${window.location.origin}/join/${Math.random().toString(36).substring(2, 15)}`,
+      inviteCode: inviteCode,
+      inviteLink: `${window.location.origin}/join/${inviteCode}`,
       status: 'waiting'
     };
 
