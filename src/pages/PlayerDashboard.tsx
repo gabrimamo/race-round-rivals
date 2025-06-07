@@ -46,6 +46,7 @@ const PlayerDashboard = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingMVP, setIsSubmittingMVP] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [hasVotedMVP, setHasVotedMVP] = useState(false);
 
   const loadTournament = async () => {
     if (!tournamentId) return;
@@ -152,132 +153,102 @@ const PlayerDashboard = () => {
     return tournament.players.filter(p => p.id !== playerId);
   };
 
-  const submitPosition = async () => {
-    if (!tournament || !playerId || !selectedPosition) return;
-
-    const position = parseInt(selectedPosition);
-    const currentRound = tournament.rounds[tournament.currentRound];
-    
-    if (!currentRound) {
-      toast({
-        title: "No active round",
-        description: "Wait for the admin to start a new round.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Check if position is already taken
-    const positionTaken = Object.values(currentRound.positions).includes(position);
-    if (positionTaken) {
-      toast({
-        title: "Position already taken",
-        description: "Another player has already claimed this position.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
+  const handleSubmitPosition = async () => {
+    if (!selectedPosition || !tournament || !playerId) return;
 
     try {
-      console.log('Current tournament state:', tournament);
-      console.log('Current round:', currentRound);
-      console.log('Submitting position:', position, 'for player:', playerId);
+      console.log('Submitting position:', {
+        tournamentId: tournament.id,
+        currentRound: tournament.currentRound,
+        selectedPosition,
+        userId: playerId
+      });
 
-      // Update round with player's position
+      const currentRound = tournament.rounds[tournament.currentRound];
+      if (!currentRound) {
+        throw new Error('Current round not found');
+      }
+
+      // Aggiorna il round con la posizione del giocatore
       const updatedRound = {
         ...currentRound,
         positions: {
           ...currentRound.positions,
-          [playerId]: position
+          [playerId]: parseInt(selectedPosition)
         }
       };
 
-      console.log('Updated round:', updatedRound);
-
-      // Check if all players have submitted
-      const allSubmitted = Object.keys(updatedRound.positions).length === tournament.players.length;
-
-      const updatedTournament = {
-        ...tournament,
-        rounds: tournament.rounds.map((r, i) => 
-          i === tournament.currentRound ? updatedRound : r
+      // Prepara l'aggiornamento del torneo
+      const tournamentUpdate: Partial<TournamentData> = {
+        rounds: tournament.rounds.map((round, index) =>
+          index === tournament.currentRound ? updatedRound : round
         )
       };
 
-      console.log('Sending update to Supabase:', updatedTournament);
-
-      const result = await updateTournament(tournament.id, updatedTournament);
+      console.log('Updating tournament with:', tournamentUpdate);
+      const updated = await updateTournament(tournament.id, tournamentUpdate);
       
-      if (result) {
-        console.log('Update successful:', result);
-        setTournament(result);
+      if (updated) {
+        setTournament(updated);
         setSelectedPosition('');
         toast({
-          title: "Position submitted!",
-          description: allSubmitted 
-            ? "All players have submitted their positions. Waiting for admin to end the round."
-            : "Waiting for other players to submit their positions.",
+          title: "Success",
+          description: "Position submitted successfully! You can now vote for the MVP (optional).",
         });
-      } else {
-        throw new Error('Failed to update tournament');
       }
     } catch (error) {
       console.error('Error submitting position:', error);
       toast({
-        title: "Error submitting position",
-        description: "There was an error submitting your position. Please try again.",
+        title: "Error",
+        description: "Error submitting position. Please try again.",
         variant: "destructive"
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
-  const submitMVP = async () => {
-    if (!tournament || !playerId || !selectedMVP) return;
-
-    const currentRound = tournament.rounds[tournament.currentRound];
-    if (!currentRound) return;
-
-    setIsSubmittingMVP(true);
+  const handleSubmitMVP = async () => {
+    if (!tournament || !playerId) return;
 
     try {
+      const currentRound = tournament.rounds[tournament.currentRound];
+      if (!currentRound) {
+        throw new Error('Current round not found');
+      }
+
+      // Aggiorna il round con il voto MVP (se selezionato)
       const updatedRound = {
         ...currentRound,
         mvpVotes: {
           ...currentRound.mvpVotes,
-          [playerId]: selectedMVP
+          ...(selectedMVP ? { [playerId]: selectedMVP } : {})
         }
       };
 
-      const updatedTournament = {
-        ...tournament,
-        rounds: tournament.rounds.map((r, i) => 
-          i === tournament.currentRound ? updatedRound : r
+      // Prepara l'aggiornamento del torneo
+      const tournamentUpdate: Partial<TournamentData> = {
+        rounds: tournament.rounds.map((round, index) =>
+          index === tournament.currentRound ? updatedRound : round
         )
       };
 
-      const result = await updateTournament(tournament.id, updatedTournament);
+      const updated = await updateTournament(tournament.id, tournamentUpdate);
       
-      if (result) {
-        setTournament(result);
+      if (updated) {
+        setTournament(updated);
         setSelectedMVP('');
+        setHasVotedMVP(true);
         toast({
-          title: "MVP vote submitted!",
-          description: "Thank you for voting for the MVP of this round.",
+          title: "Success",
+          description: selectedMVP ? "MVP vote submitted successfully!" : "Skipped MVP vote.",
         });
       }
     } catch (error) {
       console.error('Error submitting MVP vote:', error);
       toast({
-        title: "Error submitting MVP vote",
-        description: "There was an error submitting your MVP vote. Please try again.",
+        title: "Error",
+        description: "Error submitting MVP vote. Please try again.",
         variant: "destructive"
       });
-    } finally {
-      setIsSubmittingMVP(false);
     }
   };
 
@@ -475,7 +446,7 @@ const PlayerDashboard = () => {
                 </div>
 
                 <Button 
-                  onClick={submitPosition}
+                  onClick={handleSubmitPosition}
                   disabled={!selectedPosition || isSubmitting || currentPlayer?.positions[tournament.currentRound] !== undefined}
                   className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
                 >
@@ -499,7 +470,7 @@ const PlayerDashboard = () => {
                       ))}
                     </select>
                     <Button 
-                      onClick={submitMVP}
+                      onClick={handleSubmitMVP}
                       disabled={!selectedMVP || isSubmittingMVP || currentPlayer?.mvpVotes[tournament.currentRound] !== undefined}
                       className="w-full mt-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                     >
@@ -672,7 +643,7 @@ const PlayerDashboard = () => {
                       </Select>
                     </div>
                     <Button 
-                      onClick={submitPosition}
+                      onClick={handleSubmitPosition}
                       disabled={!selectedPosition}
                       className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
                     >
