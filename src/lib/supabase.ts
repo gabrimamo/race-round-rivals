@@ -24,10 +24,12 @@ export interface Tournament {
 }
 
 export const getTournamentByInviteCode = async (inviteCode: string): Promise<Tournament | null> => {
+  console.log('Searching for tournament with invite code:', inviteCode);
+  
   const { data, error } = await supabase
     .from('tournaments')
     .select('*')
-    .eq('inviteCode', inviteCode)
+    .eq('invite_code', inviteCode)
     .single();
 
   if (error) {
