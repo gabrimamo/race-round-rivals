@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
-import { Trophy, Users, Share2, Play, ArrowLeft, Crown, Copy } from 'lucide-react';
+import { Trophy, Users, Share2, Play, ArrowLeft, Crown, Copy, RefreshCw } from 'lucide-react';
 
 interface Player {
   id: string;
@@ -39,7 +39,7 @@ const AdminDashboard = () => {
   const [tournament, setTournament] = useState<TournamentData | null>(null);
   const [showInviteLink, setShowInviteLink] = useState(false);
 
-  useEffect(() => {
+  const loadTournament = () => {
     if (!tournamentId) return;
     
     const savedTournament = localStorage.getItem(`tournament_${tournamentId}`);
@@ -48,6 +48,10 @@ const AdminDashboard = () => {
     } else {
       navigate('/');
     }
+  };
+
+  useEffect(() => {
+    loadTournament();
   }, [tournamentId, navigate]);
 
   const copyInviteLink = () => {
@@ -63,22 +67,35 @@ const AdminDashboard = () => {
   const startTournament = () => {
     if (!tournament) return;
     
-    if (tournament.players.length < 2) {
+    if (tournament.players.length < 1) {
       toast({
         title: "Not enough players",
-        description: "You need at least 2 players to start the tournament.",
+        description: "You need at least 1 player to start the tournament.",
         variant: "destructive"
       });
       return;
     }
 
-    const updatedTournament = { ...tournament, status: 'active' as const };
+    // Create the first round
+    const firstRound: Round = {
+      id: 0,
+      positions: {},
+      mvpVotes: {},
+      completed: false
+    };
+
+    const updatedTournament = { 
+      ...tournament, 
+      status: 'active' as const,
+      rounds: [firstRound],
+      currentRound: 0
+    };
     setTournament(updatedTournament);
     localStorage.setItem(`tournament_${tournament.id}`, JSON.stringify(updatedTournament));
     
     toast({
       title: "Tournament started!",
-      description: "Players can now submit their race results.",
+      description: "Round 1 has begun. Players can now submit their race results.",
     });
   };
 
@@ -200,18 +217,29 @@ const AdminDashboard = () => {
                 <p className="text-purple-200">Admin Dashboard</p>
               </div>
             </div>
-            <Badge 
-              variant={tournament.status === 'active' ? 'default' : 'secondary'}
-              className={
-                tournament.status === 'active' 
-                  ? 'bg-green-600 text-white' 
-                  : tournament.status === 'completed'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white/20 text-white'
-              }
-            >
-              {tournament.status}
-            </Badge>
+            <div className="flex items-center space-x-2">
+              <Button 
+                onClick={loadTournament}
+                variant="ghost" 
+                size="sm"
+                className="text-white hover:bg-white/10"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+              <Badge 
+                variant={tournament.status === 'active' ? 'default' : 'secondary'}
+                className={
+                  tournament.status === 'active' 
+                    ? 'bg-green-600 text-white' 
+                    : tournament.status === 'completed'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white/20 text-white'
+                }
+              >
+                {tournament.status}
+              </Badge>
+            </div>
           </div>
         </div>
       </div>
@@ -292,7 +320,7 @@ const AdminDashboard = () => {
                   <Button 
                     onClick={startTournament}
                     className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-                    disabled={tournament.players.length < 2}
+                    disabled={tournament.players.length < 1}
                   >
                     <Play className="h-4 w-4 mr-2" />
                     Start Tournament

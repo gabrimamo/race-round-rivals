@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -6,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
-import { Trophy, Users, ArrowRight } from 'lucide-react';
+import { Trophy, Users, ArrowRight, RefreshCw } from 'lucide-react';
 
 interface Player {
   id: string;
@@ -36,7 +35,7 @@ const JoinTournament = () => {
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  const loadTournament = () => {
     console.log('Looking for tournament with invite code:', inviteCode);
     
     if (!inviteCode) {
@@ -64,6 +63,7 @@ const JoinTournament = () => {
               const parsedTournament = JSON.parse(tournamentData);
               console.log('Tournament data:', parsedTournament);
               setTournament(parsedTournament);
+              setError(''); // Clear any previous errors
             } catch (parseError) {
               console.error('Error parsing tournament data:', parseError);
               setError('Tournament data is corrupted.');
@@ -84,6 +84,10 @@ const JoinTournament = () => {
       console.log('No tournaments found in localStorage');
       setError('Tournament not found or invite link is invalid.');
     }
+  };
+
+  useEffect(() => {
+    loadTournament();
   }, [inviteCode]);
 
   const joinTournament = async () => {
@@ -168,7 +172,15 @@ const JoinTournament = () => {
               {error}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
+            <Button 
+              onClick={loadTournament}
+              variant="outline"
+              className="w-full border-white/20 text-white hover:bg-white/10"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
             <Button 
               onClick={() => navigate('/')}
               className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
@@ -217,24 +229,44 @@ const JoinTournament = () => {
           {tournament.status !== 'waiting' ? (
             <div className="text-center py-4">
               <p className="text-red-300 mb-4">This tournament has already started and is no longer accepting new players.</p>
-              <Button 
-                onClick={() => navigate('/')}
-                variant="outline"
-                className="border-white/20 text-white hover:bg-white/10"
-              >
-                Go Home
-              </Button>
+              <div className="space-y-3">
+                <Button 
+                  onClick={loadTournament}
+                  variant="outline"
+                  className="w-full border-white/20 text-white hover:bg-white/10"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh
+                </Button>
+                <Button 
+                  onClick={() => navigate('/')}
+                  variant="outline"
+                  className="w-full border-white/20 text-white hover:bg-white/10"
+                >
+                  Go Home
+                </Button>
+              </div>
             </div>
           ) : tournament.players.length >= tournament.participantCount ? (
             <div className="text-center py-4">
               <p className="text-red-300 mb-4">This tournament is full and is no longer accepting new players.</p>
-              <Button 
-                onClick={() => navigate('/')}
-                variant="outline"
-                className="border-white/20 text-white hover:bg-white/10"
-              >
-                Go Home
-              </Button>
+              <div className="space-y-3">
+                <Button 
+                  onClick={loadTournament}
+                  variant="outline"
+                  className="w-full border-white/20 text-white hover:bg-white/10"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh
+                </Button>
+                <Button 
+                  onClick={() => navigate('/')}
+                  variant="outline"
+                  className="w-full border-white/20 text-white hover:bg-white/10"
+                >
+                  Go Home
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">

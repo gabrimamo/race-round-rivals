@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
-import { Trophy, Flag, Crown, Users, Timer, Target } from 'lucide-react';
+import { Trophy, Flag, Crown, Users, Timer, Target, RefreshCw } from 'lucide-react';
 
 interface Player {
   id: string;
@@ -44,19 +44,6 @@ const PlayerDashboard = () => {
   const [hasSubmittedPosition, setHasSubmittedPosition] = useState(false);
   const [hasSubmittedMVP, setHasSubmittedMVP] = useState(false);
 
-  useEffect(() => {
-    if (!tournamentId) return;
-    
-    const savedPlayerId = localStorage.getItem(`player_${tournamentId}`);
-    if (!savedPlayerId) {
-      navigate('/');
-      return;
-    }
-    
-    setPlayerId(savedPlayerId);
-    loadTournament();
-  }, [tournamentId, navigate]);
-
   const loadTournament = () => {
     if (!tournamentId) return;
     
@@ -78,6 +65,19 @@ const PlayerDashboard = () => {
       }
     }
   };
+
+  useEffect(() => {
+    if (!tournamentId) return;
+    
+    const savedPlayerId = localStorage.getItem(`player_${tournamentId}`);
+    if (!savedPlayerId) {
+      navigate('/');
+      return;
+    }
+    
+    setPlayerId(savedPlayerId);
+    loadTournament();
+  }, [tournamentId, navigate]);
 
   const submitPosition = () => {
     if (!tournament || !playerId || !selectedPosition) return;
@@ -337,7 +337,17 @@ const PlayerDashboard = () => {
       <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white">
         <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h1 className="text-2xl font-bold">{tournament.name}</h1>
+            <div className="flex justify-center items-center space-x-4 mb-2">
+              <h1 className="text-2xl font-bold">{tournament.name}</h1>
+              <Button 
+                onClick={loadTournament}
+                variant="ghost" 
+                size="sm"
+                className="text-white hover:bg-white/10"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
             <p className="text-purple-200">Welcome, {currentPlayer?.nickname}!</p>
             {tournament.status === 'active' && (
               <Badge className="mt-2 bg-green-600 text-white">
@@ -362,7 +372,7 @@ const PlayerDashboard = () => {
               </div>
               <CardTitle>Waiting for Tournament to Start</CardTitle>
               <CardDescription className="text-purple-200">
-                The admin will start the tournament once all players have joined.
+                The admin will start the tournament once ready.
               </CardDescription>
             </CardHeader>
             <CardContent>
