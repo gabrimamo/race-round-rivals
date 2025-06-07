@@ -211,21 +211,19 @@ const Index = () => {
             <CardHeader>
               <CardTitle className="text-2xl">Recent Tournaments</CardTitle>
               <CardDescription className="text-purple-200">
-                Manage your active and completed tournaments
+                Join an active tournament or create your own
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {tournaments.length === 0 ? (
-                <div className="text-center py-8 text-white/60">
-                  <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No tournaments yet. Create your first one!</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {tournaments.slice(-5).reverse().map((tournament) => (
+              <div className="space-y-4">
+                {tournaments
+                  .filter(t => t.status === 'active' || t.status === 'waiting')
+                  .slice(-3)
+                  .reverse()
+                  .map((tournament) => (
                     <div 
                       key={tournament.id}
-                      className="p-4 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
+                      className="p-4 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
                       onClick={async () => {
                         try {
                           // Carica i dati aggiornati del torneo da Supabase
@@ -266,9 +264,9 @@ const Index = () => {
                             navigate(`/admin/${tournament.id}`);
                           }
                         } catch (error) {
-                          console.error('Error loading tournament:', error);
+                          console.error('Error:', error);
                           toast({
-                            title: "Errore nel caricamento del torneo",
+                            title: "Errore",
                             description: "Si è verificato un errore imprevisto. Riprova più tardi.",
                             variant: "destructive"
                           });
@@ -277,26 +275,29 @@ const Index = () => {
                     >
                       <div className="flex justify-between items-start">
                         <div>
-                          <h3 className="font-semibold text-white">{tournament.name}</h3>
-                          <p className="text-sm text-white/60">
-                            {tournament.participantCount} participants • {new Date(tournament.createdAt).toLocaleDateString()}
-                          </p>
+                          <h3 className="font-medium">{tournament.name}</h3>
+                          <div className="flex items-center space-x-4 text-sm text-white/70 mt-1">
+                            <div className="flex items-center">
+                              <Users className="h-4 w-4 mr-1" />
+                              {tournament.players.length}/{tournament.participantCount}
+                            </div>
+                            <Badge className={tournament.status === 'active' ? 'bg-green-600' : 'bg-blue-600'}>
+                              {tournament.status === 'active' ? 'Active' : 'Waiting'}
+                            </Badge>
+                          </div>
                         </div>
-                        <Badge 
-                          variant={tournament.status === 'active' ? 'default' : 'secondary'}
-                          className={
-                            tournament.status === 'active' 
-                              ? 'bg-green-600 text-white' 
-                              : 'bg-white/20 text-white'
-                          }
-                        >
-                          {tournament.status}
-                        </Badge>
+                        <ArrowRight className="h-5 w-5 text-white/50" />
                       </div>
                     </div>
                   ))}
-                </div>
-              )}
+
+                {tournaments.filter(t => t.status === 'active' || t.status === 'waiting').length === 0 && (
+                  <div className="text-center py-8 text-white/70">
+                    <p>No active tournaments found.</p>
+                    <p className="mt-2">Be the first to create one!</p>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>

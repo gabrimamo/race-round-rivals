@@ -37,6 +37,10 @@ const JoinTournament = () => {
       
       if (foundTournament) {
         console.log('Found tournament:', foundTournament);
+        if (foundTournament.status === 'deleted') {
+          setError('Questo torneo è stato eliminato.');
+          return;
+        }
         setTournament(foundTournament);
         setError('');
       } else {
@@ -191,113 +195,121 @@ const JoinTournament = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-      <Card className="bg-white/10 backdrop-blur-sm border-white/20 text-white max-w-md w-full mx-4">
-        <CardHeader className="text-center">
-          <div className="p-4 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-            <Trophy className="h-8 w-8 text-white" />
-          </div>
-          <CardTitle className="text-2xl">Join Tournament</CardTitle>
-          <CardDescription className="text-purple-200">
-            {tournament.name}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="text-center">
-            <div className="flex items-center justify-center space-x-4 text-sm text-white/70">
-              <div className="flex items-center">
-                <Users className="h-4 w-4 mr-1" />
-                {tournament.players.length}/{tournament.participantCount} players
-              </div>
-              <div className="capitalize">
-                Status: {tournament.status}
+      <div className="w-full max-w-md mx-4">
+        <Card className="bg-white/10 backdrop-blur-sm border-white/20 text-white">
+          <CardHeader className="text-center">
+            <div className="p-4 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+              <Trophy className="h-8 w-8 text-white" />
+            </div>
+            <CardTitle className="text-2xl">Join Tournament</CardTitle>
+            <CardDescription className="text-purple-200">
+              {tournament.name}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="text-center">
+              <div className="flex items-center justify-center space-x-4 text-sm text-white/70">
+                <div className="flex items-center">
+                  <Users className="h-4 w-4 mr-1" />
+                  {tournament.players.length}/{tournament.participantCount} players
+                </div>
+                <div className="capitalize">
+                  Status: {tournament.status}
+                </div>
               </div>
             </div>
-          </div>
 
-          {tournament.status !== 'waiting' ? (
-            <div className="text-center py-4">
-              <p className="text-red-300 mb-4">This tournament has already started and is no longer accepting new players.</p>
-              <div className="space-y-3">
+            {tournament.status !== 'waiting' ? (
+              <div className="text-center py-4">
+                <p className="text-red-300 mb-4">This tournament has already started and is no longer accepting new players.</p>
+                <div className="space-y-3">
+                  <Button 
+                    onClick={loadTournament}
+                    variant="outline"
+                    className="w-full border-white/20 text-white hover:bg-white/10"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh
+                  </Button>
+                  <Button 
+                    onClick={() => navigate('/')}
+                    variant="outline"
+                    className="w-full border-white/20 text-white hover:bg-white/10"
+                  >
+                    Go Home
+                  </Button>
+                </div>
+              </div>
+            ) : tournament.players.length >= tournament.participantCount ? (
+              <div className="text-center py-4">
+                <p className="text-red-300 mb-4">This tournament is full and is no longer accepting new players.</p>
+                <div className="space-y-3">
+                  <Button 
+                    onClick={loadTournament}
+                    variant="outline"
+                    className="w-full border-white/20 text-white hover:bg-white/10"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh
+                  </Button>
+                  <Button 
+                    onClick={() => navigate('/')}
+                    variant="outline"
+                    className="w-full border-white/20 text-white hover:bg-white/10"
+                  >
+                    Go Home
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="nickname" className="text-white">Choose Your Nickname</Label>
+                  <Input
+                    id="nickname"
+                    value={nickname}
+                    onChange={(e) => setNickname(e.target.value)}
+                    placeholder="Enter your racing nickname"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
+                    maxLength={20}
+                  />
+                  <p className="text-xs text-white/60 mt-1">
+                    This will be your display name in the tournament
+                  </p>
+                </div>
+
                 <Button 
-                  onClick={loadTournament}
-                  variant="outline"
-                  className="w-full border-white/20 text-white hover:bg-white/10"
+                  onClick={joinTournament}
+                  disabled={!nickname.trim() || isJoining}
+                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
                 >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Refresh
-                </Button>
-                <Button 
-                  onClick={() => navigate('/')}
-                  variant="outline"
-                  className="w-full border-white/20 text-white hover:bg-white/10"
-                >
-                  Go Home
+                  {isJoining ? 'Joining...' : 'Join Tournament'}
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
-            </div>
-          ) : tournament.players.length >= tournament.participantCount ? (
-            <div className="text-center py-4">
-              <p className="text-red-300 mb-4">This tournament is full and is no longer accepting new players.</p>
-              <div className="space-y-3">
-                <Button 
-                  onClick={loadTournament}
-                  variant="outline"
-                  className="w-full border-white/20 text-white hover:bg-white/10"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Refresh
-                </Button>
-                <Button 
-                  onClick={() => navigate('/')}
-                  variant="outline"
-                  className="w-full border-white/20 text-white hover:bg-white/10"
-                >
-                  Go Home
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
+            )}
+
+            {tournament.players.length > 0 && (
               <div>
-                <Label htmlFor="nickname" className="text-white">Choose Your Nickname</Label>
-                <Input
-                  id="nickname"
-                  value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                  placeholder="Enter your racing nickname"
-                  className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
-                  maxLength={20}
-                />
-                <p className="text-xs text-white/60 mt-1">
-                  This will be your display name in the tournament
-                </p>
+                <h3 className="text-sm font-medium text-white/80 mb-2">Current Players:</h3>
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {tournament.players.map((player, index) => (
+                    <div key={player.id} className="text-sm text-white/70 py-1">
+                      {index + 1}. {player.nickname}
+                    </div>
+                  ))}
+                </div>
               </div>
-
-              <Button 
-                onClick={joinTournament}
-                disabled={!nickname.trim() || isJoining}
-                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-              >
-                {isJoining ? 'Joining...' : 'Join Tournament'}
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-          )}
-
-          {tournament.players.length > 0 && (
-            <div>
-              <h3 className="text-sm font-medium text-white/80 mb-2">Current Players:</h3>
-              <div className="space-y-1 max-h-32 overflow-y-auto">
-                {tournament.players.map((player, index) => (
-                  <div key={player.id} className="text-sm text-white/70 py-1">
-                    {index + 1}. {player.nickname}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            )}
+          </CardContent>
+        </Card>
+        
+        {/* Footer */}
+        <div className="text-center text-white/50 text-sm mt-8">
+          <p>Created with ❤️ by <a href="https://twitter.com/gabrimamo" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300">@gabrimamo</a></p>
+          <p className="mt-1">Thank you for using Race Round Rivals!</p>
+        </div>
+      </div>
     </div>
   );
 };

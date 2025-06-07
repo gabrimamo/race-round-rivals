@@ -118,7 +118,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const startTournament = () => {
+  const startTournament = async () => {
     if (!tournament) return;
     
     if (tournament.players.length < 1) {
@@ -144,13 +144,30 @@ const AdminDashboard = () => {
       rounds: [firstRound],
       currentRound: 0
     };
-    setTournament(updatedTournament);
-    localStorage.setItem(`tournament_${tournament.id}`, JSON.stringify(updatedTournament));
-    
-    toast({
-      title: "Tournament started!",
-      description: "Round 1 has begun. Players can now submit their race results.",
-    });
+
+    try {
+      // Aggiorna il torneo in Supabase
+      const result = await updateTournament(tournament.id, updatedTournament);
+      
+      if (result) {
+        setTournament(updatedTournament);
+        localStorage.setItem(`tournament_${tournament.id}`, JSON.stringify(updatedTournament));
+        
+        toast({
+          title: "Tournament started!",
+          description: "Round 1 has begun. Players can now submit their race results.",
+        });
+      } else {
+        throw new Error('Failed to update tournament');
+      }
+    } catch (error) {
+      console.error('Error starting tournament:', error);
+      toast({
+        title: "Error starting tournament",
+        description: "There was an error starting the tournament. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const endCurrentRound = () => {
