@@ -42,17 +42,35 @@ const JoinTournament = () => {
       setError('No invite code provided.');
       return;
     }
+
+    // Prima prova a trovare il torneo usando il codice di invito diretto
+    const tournamentId = localStorage.getItem(`invite_${inviteCode}`);
+    if (tournamentId) {
+      const tournamentData = localStorage.getItem(`tournament_${tournamentId}`);
+      if (tournamentData) {
+        try {
+          const parsedTournament = JSON.parse(tournamentData);
+          console.log('Found tournament by invite code:', parsedTournament);
+          setTournament(parsedTournament);
+          setError('');
+          return;
+        } catch (parseError) {
+          console.error('Error parsing tournament data:', parseError);
+        }
+      }
+    }
     
-    // Find tournament by invite code
+    // Se non trovato, prova il metodo precedente
     const tournaments = localStorage.getItem('tournaments');
     if (tournaments) {
       try {
         const tournamentList = JSON.parse(tournaments);
         console.log('Available tournaments:', tournamentList);
         
-        const foundTournament = tournamentList.find((t: any) => 
-          t.inviteCode === inviteCode
-        );
+        const foundTournament = tournamentList.find((t: any) => {
+          const inviteCodeFromLink = t.inviteLink.split('/').pop();
+          return inviteCodeFromLink === inviteCode;
+        });
         
         console.log('Found tournament:', foundTournament);
         
@@ -63,7 +81,7 @@ const JoinTournament = () => {
               const parsedTournament = JSON.parse(tournamentData);
               console.log('Tournament data:', parsedTournament);
               setTournament(parsedTournament);
-              setError(''); // Clear any previous errors
+              setError('');
             } catch (parseError) {
               console.error('Error parsing tournament data:', parseError);
               setError('Tournament data is corrupted.');

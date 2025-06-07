@@ -46,15 +46,22 @@ const Index = () => {
       status: 'waiting'
     };
 
+    // Salva il torneo nella lista dei tornei
     const updatedTournaments = [...tournaments, newTournament];
     setTournaments(updatedTournaments);
     localStorage.setItem('tournaments', JSON.stringify(updatedTournaments));
-    localStorage.setItem(`tournament_${newTournament.id}`, JSON.stringify({
+
+    // Salva i dati completi del torneo
+    const tournamentData = {
       ...newTournament,
       players: [],
       rounds: [],
       currentRound: 0
-    }));
+    };
+    localStorage.setItem(`tournament_${newTournament.id}`, JSON.stringify(tournamentData));
+
+    // Salva anche il codice di invito come riferimento rapido
+    localStorage.setItem(`invite_${inviteCode}`, newTournament.id);
 
     setTournamentName('');
     setShowCreateForm(false);
