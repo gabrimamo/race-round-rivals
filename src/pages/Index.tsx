@@ -80,6 +80,11 @@ const Index = () => {
         setTournaments(prev => [...prev, result]);
         setTournamentName('');
         setShowCreateForm(false);
+        
+        // Salva il torneo nel localStorage prima della navigazione
+        localStorage.setItem(`tournament_${result.id}`, JSON.stringify(result));
+        
+        // Naviga alla dashboard dell'admin
         navigate(`/admin/${result.id}`);
       } else {
         console.error('Failed to create tournament: No result returned');
@@ -221,7 +226,54 @@ const Index = () => {
                     <div 
                       key={tournament.id}
                       className="p-4 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
-                      onClick={() => navigate(`/admin/${tournament.id}`)}
+                      onClick={async () => {
+                        try {
+                          // Carica i dati aggiornati del torneo da Supabase
+                          const { data, error } = await supabase
+                            .from('tournaments')
+                            .select('*')
+                            .eq('id', tournament.id)
+                            .single();
+
+                          if (error) {
+                            console.error('Error loading tournament:', error);
+                            toast({
+                              title: "Errore nel caricamento del torneo",
+                              description: "Non è stato possibile caricare i dati del torneo. Riprova più tardi.",
+                              variant: "destructive"
+                            });
+                            return;
+                          }
+
+                          if (data) {
+                            // Converti i nomi delle colonne da snake_case a camelCase
+                            const formattedData: Tournament = {
+                              id: data.id,
+                              name: data.name,
+                              participantCount: data.participant_count,
+                              inviteCode: data.invite_code,
+                              status: data.status,
+                              createdAt: data.created_at,
+                              players: data.players || [],
+                              rounds: data.rounds || [],
+                              currentRound: data.current_round || 0
+                            };
+
+                            // Salva i dati aggiornati nel localStorage
+                            localStorage.setItem(`tournament_${tournament.id}`, JSON.stringify(formattedData));
+                            
+                            // Naviga alla dashboard dell'admin
+                            navigate(`/admin/${tournament.id}`);
+                          }
+                        } catch (error) {
+                          console.error('Error loading tournament:', error);
+                          toast({
+                            title: "Errore nel caricamento del torneo",
+                            description: "Si è verificato un errore imprevisto. Riprova più tardi.",
+                            variant: "destructive"
+                          });
+                        }
+                      }}
                     >
                       <div className="flex justify-between items-start">
                         <div>
