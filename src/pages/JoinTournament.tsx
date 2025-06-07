@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -38,31 +39,46 @@ const JoinTournament = () => {
   useEffect(() => {
     console.log('Looking for tournament with invite code:', inviteCode);
     
+    if (!inviteCode) {
+      setError('No invite code provided.');
+      return;
+    }
+    
     // Find tournament by invite code
     const tournaments = localStorage.getItem('tournaments');
     if (tournaments) {
-      const tournamentList = JSON.parse(tournaments);
-      console.log('Available tournaments:', tournamentList);
-      
-      const foundTournament = tournamentList.find((t: any) => 
-        t.inviteCode === inviteCode
-      );
-      
-      console.log('Found tournament:', foundTournament);
-      
-      if (foundTournament) {
-        const tournamentData = localStorage.getItem(`tournament_${foundTournament.id}`);
-        if (tournamentData) {
-          const parsedTournament = JSON.parse(tournamentData);
-          console.log('Tournament data:', parsedTournament);
-          setTournament(parsedTournament);
+      try {
+        const tournamentList = JSON.parse(tournaments);
+        console.log('Available tournaments:', tournamentList);
+        
+        const foundTournament = tournamentList.find((t: any) => 
+          t.inviteCode === inviteCode
+        );
+        
+        console.log('Found tournament:', foundTournament);
+        
+        if (foundTournament) {
+          const tournamentData = localStorage.getItem(`tournament_${foundTournament.id}`);
+          if (tournamentData) {
+            try {
+              const parsedTournament = JSON.parse(tournamentData);
+              console.log('Tournament data:', parsedTournament);
+              setTournament(parsedTournament);
+            } catch (parseError) {
+              console.error('Error parsing tournament data:', parseError);
+              setError('Tournament data is corrupted.');
+            }
+          } else {
+            console.log('No tournament data found for ID:', foundTournament.id);
+            setError('Tournament data not found.');
+          }
         } else {
-          console.log('No tournament data found for ID:', foundTournament.id);
-          setError('Tournament data not found.');
+          console.log('No tournament found with invite code:', inviteCode);
+          setError('Tournament not found or invite link is invalid.');
         }
-      } else {
-        console.log('No tournament found with invite code:', inviteCode);
-        setError('Tournament not found or invite link is invalid.');
+      } catch (parseError) {
+        console.error('Error parsing tournaments list:', parseError);
+        setError('Error loading tournaments.');
       }
     } else {
       console.log('No tournaments found in localStorage');
