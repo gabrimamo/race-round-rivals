@@ -145,7 +145,20 @@ export const updateTournament = async (id: string, updates: Partial<Tournament>)
     if (updates.rounds !== undefined) formattedUpdates.rounds = updates.rounds;
     if (updates.currentRound !== undefined) formattedUpdates.current_round = updates.currentRound;
 
+    // Rimuovi i campi undefined
+    Object.keys(formattedUpdates).forEach(key => {
+      if (formattedUpdates[key] === undefined) {
+        delete formattedUpdates[key];
+      }
+    });
+
     console.log('Formatted updates for Supabase:', formattedUpdates);
+
+    // Verifica che ci siano aggiornamenti da fare
+    if (Object.keys(formattedUpdates).length === 0) {
+      console.error('No valid updates to apply');
+      return null;
+    }
 
     const { data, error } = await supabase
       .from('tournaments')
@@ -155,7 +168,12 @@ export const updateTournament = async (id: string, updates: Partial<Tournament>)
       .single();
 
     if (error) {
-      console.error('Error updating tournament:', error);
+      console.error('Error updating tournament:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
       return null;
     }
 

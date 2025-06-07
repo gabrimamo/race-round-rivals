@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from '@/hooks/use-toast';
 import { Trophy, Flag, Crown, Users, Timer, Target, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { getTournamentByInviteCode, updateTournament } from '@/lib/supabase';
 
 interface Player {
   id: string;
@@ -180,6 +181,10 @@ const PlayerDashboard = () => {
     setIsSubmitting(true);
 
     try {
+      console.log('Current tournament state:', tournament);
+      console.log('Current round:', currentRound);
+      console.log('Submitting position:', position, 'for player:', playerId);
+
       // Update round with player's position
       const updatedRound = {
         ...currentRound,
@@ -188,6 +193,8 @@ const PlayerDashboard = () => {
           [playerId]: position
         }
       };
+
+      console.log('Updated round:', updatedRound);
 
       // Check if all players have submitted
       const allSubmitted = Object.keys(updatedRound.positions).length === tournament.players.length;
@@ -199,9 +206,12 @@ const PlayerDashboard = () => {
         )
       };
 
+      console.log('Sending update to Supabase:', updatedTournament);
+
       const result = await updateTournament(tournament.id, updatedTournament);
       
       if (result) {
+        console.log('Update successful:', result);
         setTournament(result);
         setSelectedPosition('');
         toast({
@@ -210,6 +220,8 @@ const PlayerDashboard = () => {
             ? "All players have submitted their positions. Waiting for admin to end the round."
             : "Waiting for other players to submit their positions.",
         });
+      } else {
+        throw new Error('Failed to update tournament');
       }
     } catch (error) {
       console.error('Error submitting position:', error);
