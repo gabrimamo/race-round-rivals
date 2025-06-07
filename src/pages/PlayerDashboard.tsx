@@ -48,6 +48,7 @@ const PlayerDashboard = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [hasVotedMVP, setHasVotedMVP] = useState(false);
   const [showMVPForm, setShowMVPForm] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<number>(Date.now());
 
   const loadTournament = async () => {
     if (!tournamentId) return;
@@ -128,14 +129,17 @@ const PlayerDashboard = () => {
     setPlayerId(savedPlayerId);
     loadTournament();
 
-    // Imposta un intervallo per aggiornare i dati ogni 3 secondi
+    // Aggiorna ogni 15 secondi solo se necessario
     const interval = setInterval(() => {
-      loadTournament();
-      setRefreshKey(prev => prev + 1);
-    }, 3000);
+      const now = Date.now();
+      if (now - lastUpdate >= 15000) {
+        loadTournament();
+        setLastUpdate(now);
+      }
+    }, 15000);
 
     return () => clearInterval(interval);
-  }, [tournamentId, navigate]);
+  }, [tournamentId, navigate, lastUpdate]);
 
   // Funzione per ottenere le posizioni disponibili
   const getAvailablePositions = () => {
@@ -171,6 +175,17 @@ const PlayerDashboard = () => {
         throw new Error('Current round not found');
       }
 
+      // Controlla se la posizione è già stata scelta
+      const positionTaken = Object.values(currentRound.positions).includes(parseInt(selectedPosition));
+      if (positionTaken) {
+        toast({
+          title: "Posizione già occupata",
+          description: "Questa posizione è già stata scelta da un altro giocatore.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       // Aggiorna il round con la posizione del giocatore
       const updatedRound = {
         ...currentRound,
@@ -194,6 +209,7 @@ const PlayerDashboard = () => {
         setTournament(updated);
         setSelectedPosition('');
         setShowMVPForm(true);
+        setLastUpdate(Date.now());
         toast({
           title: "Success",
           description: "Position submitted successfully! You can now vote for the MVP (optional).",
@@ -244,6 +260,7 @@ const PlayerDashboard = () => {
         setSelectedMVP('');
         setHasVotedMVP(true);
         setShowMVPForm(false);
+        setLastUpdate(Date.now());
         toast({
           title: "Success",
           description: selectedMVP ? "MVP vote submitted successfully!" : "Skipped MVP vote.",
@@ -451,7 +468,6 @@ const PlayerDashboard = () => {
                       >
                         <option value="">Seleziona la tua posizione</option>
                         {Array.from({ length: tournament.players.length }, (_, i) => i + 1)
-                          .filter(pos => !Object.values(currentRound?.positions || {}).includes(pos))
                           .map(pos => (
                             <option key={pos} value={pos}>
                               {pos}°
@@ -513,12 +529,12 @@ const PlayerDashboard = () => {
                 )}
 
                 {/* Messaggio di attesa dopo il voto MVP */}
-                {hasVotedMVP && (
+                {hasVotedMVP && !currentPlayer?.positions[tournament.currentRound + 1] && (
                   <div className="mt-8">
                     <div className="bg-gray-800 rounded-lg p-6 text-center">
-                      <h2 className="text-2xl font-bold mb-4">Attendi il prossimo round</h2>
+                      <h2 className="text-2xl font-bold mb-4">Preparati per il prossimo round</h2>
                       <p className="text-gray-300">
-                        Hai completato tutte le azioni per questo round. Attendi che l'admin avvii il prossimo round.
+                        Ottimo! Mentre sei in attesa che anche gli altri giocatori segnino la loro posizione non dimenticarti di scaldare le gomme
                       </p>
                     </div>
                   </div>
