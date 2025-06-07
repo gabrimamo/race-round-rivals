@@ -134,16 +134,16 @@ export const updateTournament = async (id: string, updates: Partial<Tournament>)
     console.log('Updates:', updates);
 
     // Converti i nomi delle colonne da camelCase a snake_case per l'aggiornamento
-    const formattedUpdates = {
-      name: updates.name,
-      participant_count: updates.participantCount,
-      invite_code: updates.inviteCode,
-      status: updates.status,
-      created_at: updates.createdAt,
-      players: updates.players,
-      rounds: updates.rounds,
-      current_round: updates.currentRound
-    };
+    const formattedUpdates: any = {};
+    
+    if (updates.name !== undefined) formattedUpdates.name = updates.name;
+    if (updates.participantCount !== undefined) formattedUpdates.participant_count = updates.participantCount;
+    if (updates.inviteCode !== undefined) formattedUpdates.invite_code = updates.inviteCode;
+    if (updates.status !== undefined) formattedUpdates.status = updates.status;
+    if (updates.createdAt !== undefined) formattedUpdates.created_at = updates.createdAt;
+    if (updates.players !== undefined) formattedUpdates.players = updates.players;
+    if (updates.rounds !== undefined) formattedUpdates.rounds = updates.rounds;
+    if (updates.currentRound !== undefined) formattedUpdates.current_round = updates.currentRound;
 
     console.log('Formatted updates for Supabase:', formattedUpdates);
 
