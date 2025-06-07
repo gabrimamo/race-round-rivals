@@ -36,23 +36,42 @@ export const createTournament = async (tournament: Omit<Tournament, 'id'>): Prom
   try {
     console.log('Attempting to create tournament in Supabase:', tournament);
     
+    // Verifica che tutti i campi richiesti siano presenti
+    if (!tournament.name || !tournament.inviteCode || !tournament.status) {
+      console.error('Missing required fields:', {
+        name: tournament.name,
+        inviteCode: tournament.inviteCode,
+        status: tournament.status
+      });
+      return null;
+    }
+
+    const tournamentData = {
+      name: tournament.name,
+      participant_count: tournament.participantCount,
+      invite_code: tournament.inviteCode,
+      status: tournament.status,
+      created_at: tournament.createdAt,
+      players: tournament.players || [],
+      rounds: tournament.rounds || [],
+      current_round: tournament.currentRound || 0
+    };
+
+    console.log('Formatted tournament data for Supabase:', tournamentData);
+
     const { data, error } = await supabase
       .from('tournaments')
-      .insert([{
-        name: tournament.name,
-        participant_count: tournament.participantCount,
-        invite_code: tournament.inviteCode,
-        status: tournament.status,
-        created_at: tournament.createdAt,
-        players: tournament.players,
-        rounds: tournament.rounds,
-        current_round: tournament.currentRound
-      }])
+      .insert([tournamentData])
       .select()
       .single();
 
     if (error) {
-      console.error('Supabase error creating tournament:', error);
+      console.error('Supabase error creating tournament:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
       return null;
     }
 
@@ -69,9 +88,9 @@ export const createTournament = async (tournament: Omit<Tournament, 'id'>): Prom
       inviteCode: data.invite_code,
       status: data.status,
       createdAt: data.created_at,
-      players: data.players,
-      rounds: data.rounds,
-      currentRound: data.current_round
+      players: data.players || [],
+      rounds: data.rounds || [],
+      currentRound: data.current_round || 0
     };
 
     console.log('Successfully created tournament:', formattedData);

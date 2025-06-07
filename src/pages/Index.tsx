@@ -40,7 +40,14 @@ const Index = () => {
   }, []);
 
   const handleCreateTournament = async () => {
-    if (!tournamentName.trim()) return;
+    if (!tournamentName.trim()) {
+      toast({
+        title: "Nome torneo mancante",
+        description: "Inserisci un nome per il torneo.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     const inviteCode = Math.random().toString(36).substring(2, 15);
     const newTournament: Omit<Tournament, 'id'> = {
@@ -67,16 +74,16 @@ const Index = () => {
       } else {
         console.error('Failed to create tournament: No result returned');
         toast({
-          title: "Error creating tournament",
-          description: "Please try again.",
+          title: "Errore nella creazione del torneo",
+          description: "Si è verificato un errore durante la creazione del torneo. Controlla la console per maggiori dettagli.",
           variant: "destructive"
         });
       }
     } catch (error) {
       console.error('Error creating tournament:', error);
       toast({
-        title: "Error creating tournament",
-        description: "Please try again.",
+        title: "Errore nella creazione del torneo",
+        description: "Si è verificato un errore imprevisto. Controlla la console per maggiori dettagli.",
         variant: "destructive"
       });
     }
