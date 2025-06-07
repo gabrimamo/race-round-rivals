@@ -3,7 +3,13 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = 'https://ciphmeixukqdrzjdsmma.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpcGhtZWl4dWtxZHJ6amRzbW1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkzMjI1NjUsImV4cCI6MjA2NDg5ODU2NX0.p3-CYZJ646JiViZz34vCSfOi6cFrGKzvu_vkc2sB10M';
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+});
 
 export interface Tournament {
   id: string;

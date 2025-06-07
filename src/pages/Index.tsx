@@ -23,16 +23,26 @@ const Index = () => {
         const { data, error } = await supabase
           .from('tournaments')
           .select('*')
-          .order('createdAt', { ascending: false });
+          .order('created_at', { ascending: false });
 
         if (error) {
           console.error('Error loading tournaments:', error);
+          toast({
+            title: "Errore nel caricamento dei tornei",
+            description: "Non è stato possibile caricare i tornei. Riprova più tardi.",
+            variant: "destructive"
+          });
           return;
         }
 
         setTournaments(data || []);
       } catch (error) {
         console.error('Error loading tournaments:', error);
+        toast({
+          title: "Errore nel caricamento dei tornei",
+          description: "Si è verificato un errore imprevisto. Riprova più tardi.",
+          variant: "destructive"
+        });
       }
     };
 
