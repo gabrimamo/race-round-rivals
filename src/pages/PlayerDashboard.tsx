@@ -41,12 +41,13 @@ const PlayerDashboard = () => {
   const navigate = useNavigate();
   const [tournament, setTournament] = useState<TournamentData | null>(null);
   const [playerId, setPlayerId] = useState<string | null>(null);
-  const [selectedPosition, setSelectedPosition] = useState<string>('');
-  const [selectedMVP, setSelectedMVP] = useState<string>('');
+  const [selectedPosition, setSelectedPosition] = useState('');
+  const [selectedMVP, setSelectedMVP] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingMVP, setIsSubmittingMVP] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [hasVotedMVP, setHasVotedMVP] = useState(false);
+  const [showMVPForm, setShowMVPForm] = useState(false);
 
   const loadTournament = async () => {
     if (!tournamentId) return;
@@ -157,6 +158,7 @@ const PlayerDashboard = () => {
     if (!selectedPosition || !tournament || !playerId) return;
 
     try {
+      setIsSubmitting(true);
       console.log('Submitting position:', {
         tournamentId: tournament.id,
         currentRound: tournament.currentRound,
@@ -191,6 +193,7 @@ const PlayerDashboard = () => {
       if (updated) {
         setTournament(updated);
         setSelectedPosition('');
+        setShowMVPForm(true);
         toast({
           title: "Success",
           description: "Position submitted successfully! You can now vote for the MVP (optional).",
@@ -203,6 +206,8 @@ const PlayerDashboard = () => {
         description: "Error submitting position. Please try again.",
         variant: "destructive"
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -210,6 +215,7 @@ const PlayerDashboard = () => {
     if (!tournament || !playerId) return;
 
     try {
+      setIsSubmittingMVP(true);
       const currentRound = tournament.rounds[tournament.currentRound];
       if (!currentRound) {
         throw new Error('Current round not found');
@@ -237,6 +243,7 @@ const PlayerDashboard = () => {
         setTournament(updated);
         setSelectedMVP('');
         setHasVotedMVP(true);
+        setShowMVPForm(false);
         toast({
           title: "Success",
           description: selectedMVP ? "MVP vote submitted successfully!" : "Skipped MVP vote.",
@@ -249,6 +256,8 @@ const PlayerDashboard = () => {
         description: "Error submitting MVP vote. Please try again.",
         variant: "destructive"
       });
+    } finally {
+      setIsSubmittingMVP(false);
     }
   };
 
@@ -429,53 +438,77 @@ const PlayerDashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div>
-                  <Label htmlFor="position" className="text-white">Your Position</Label>
-                  <select
-                    id="position"
-                    value={selectedPosition}
-                    onChange={(e) => setSelectedPosition(e.target.value)}
-                    className="w-full mt-1 bg-white/10 border-white/20 text-white rounded-md"
-                    disabled={isSubmitting || currentPlayer?.positions[tournament.currentRound] !== undefined}
-                  >
-                    <option value="">Select your position</option>
-                    {getAvailablePositions().map(pos => (
-                      <option key={pos} value={pos}>{pos}</option>
-                    ))}
-                  </select>
-                </div>
+                {/* Form per l'inserimento della posizione */}
+                {!currentPlayer?.positions[tournament.currentRound] && !showMVPForm && (
+                  <div className="mt-8">
+                    <h2 className="text-2xl font-bold mb-4">Inserisci la tua posizione</h2>
+                    <div className="bg-gray-800 rounded-lg p-6">
+                      <select
+                        value={selectedPosition}
+                        onChange={(e) => setSelectedPosition(e.target.value)}
+                        className="w-full bg-gray-700 text-white rounded-lg p-2 mb-4"
+                        disabled={isSubmitting}
+                      >
+                        <option value="">Seleziona la tua posizione</option>
+                        {Array.from({ length: tournament.players.length }, (_, i) => i + 1)
+                          .filter(pos => !Object.values(currentRound?.positions || {}).includes(pos))
+                          .map(pos => (
+                            <option key={pos} value={pos}>
+                              {pos}°
+                            </option>
+                          ))}
+                      </select>
+                      <Button 
+                        onClick={handleSubmitPosition}
+                        disabled={!selectedPosition || isSubmitting}
+                        className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                      >
+                        {isSubmitting ? 'Invio in corso...' : 'Invia Posizione'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
-                <Button 
-                  onClick={handleSubmitPosition}
-                  disabled={!selectedPosition || isSubmitting || currentPlayer?.positions[tournament.currentRound] !== undefined}
-                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-                >
-                  {isSubmitting ? 'Submitting...' : 'Submit Position'}
-                </Button>
-
-                {/* MVP Vote Section */}
-                {currentPlayer?.positions[tournament.currentRound] !== undefined && (
-                  <div className="mt-6 pt-6 border-t border-white/20">
-                    <Label htmlFor="mvp" className="text-white">Vote for MVP (Optional)</Label>
-                    <select
-                      id="mvp"
-                      value={selectedMVP}
-                      onChange={(e) => setSelectedMVP(e.target.value)}
-                      className="w-full mt-1 bg-white/10 border-white/20 text-white rounded-md"
-                      disabled={isSubmittingMVP || currentPlayer?.mvpVotes[tournament.currentRound] !== undefined}
-                    >
-                      <option value="">Select MVP</option>
-                      {getAvailableMVPPlayers().map(player => (
-                        <option key={player.id} value={player.id}>{player.nickname}</option>
-                      ))}
-                    </select>
-                    <Button 
-                      onClick={handleSubmitMVP}
-                      disabled={!selectedMVP || isSubmittingMVP || currentPlayer?.mvpVotes[tournament.currentRound] !== undefined}
-                      className="w-full mt-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                    >
-                      {isSubmittingMVP ? 'Submitting...' : 'Submit MVP Vote'}
-                    </Button>
+                {/* Form per il voto MVP */}
+                {showMVPForm && !hasVotedMVP && (
+                  <div className="mt-8">
+                    <h2 className="text-2xl font-bold mb-4">Vota l'MVP del round</h2>
+                    <div className="bg-gray-800 rounded-lg p-6">
+                      <select
+                        value={selectedMVP}
+                        onChange={(e) => setSelectedMVP(e.target.value)}
+                        className="w-full bg-gray-700 text-white rounded-lg p-2 mb-4"
+                        disabled={isSubmittingMVP}
+                      >
+                        <option value="">Seleziona l'MVP (opzionale)</option>
+                        {tournament.players
+                          .filter(p => p.id !== playerId)
+                          .map(player => (
+                            <option key={player.id} value={player.id}>
+                              {player.nickname}
+                            </option>
+                          ))}
+                      </select>
+                      <div className="flex space-x-4">
+                        <Button 
+                          onClick={handleSubmitMVP}
+                          disabled={isSubmittingMVP}
+                          className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                        >
+                          {isSubmittingMVP ? 'Invio in corso...' : 'Invia Voto'}
+                        </Button>
+                        <Button 
+                          onClick={() => {
+                            setSelectedMVP('');
+                            handleSubmitMVP();
+                          }}
+                          disabled={isSubmittingMVP}
+                          className="flex-1 bg-gray-600 hover:bg-gray-700"
+                        >
+                          Salta
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 )}
               </CardContent>
