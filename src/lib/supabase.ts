@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://your-project.supabase.co';
-const supabaseKey = 'your-anon-key';
+const supabaseUrl = 'https://ciphmeixukqdrzjdsmma.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpcGhtZWl4dWtxZHJ6amRzbW1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkzMjI1NjUsImV4cCI6MjA2NDg5ODU2NX0.p3-CYZJ646JiViZz34vCSfOi6cFrGKzvu_vkc2sB10M';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -33,18 +33,53 @@ export const getTournamentByInviteCode = async (inviteCode: string): Promise<Tou
 };
 
 export const createTournament = async (tournament: Omit<Tournament, 'id'>): Promise<Tournament | null> => {
-  const { data, error } = await supabase
-    .from('tournaments')
-    .insert([tournament])
-    .select()
-    .single();
+  try {
+    console.log('Attempting to create tournament in Supabase:', tournament);
+    
+    const { data, error } = await supabase
+      .from('tournaments')
+      .insert([{
+        name: tournament.name,
+        participant_count: tournament.participantCount,
+        invite_code: tournament.inviteCode,
+        status: tournament.status,
+        created_at: tournament.createdAt,
+        players: tournament.players,
+        rounds: tournament.rounds,
+        current_round: tournament.currentRound
+      }])
+      .select()
+      .single();
 
-  if (error) {
-    console.error('Error creating tournament:', error);
+    if (error) {
+      console.error('Supabase error creating tournament:', error);
+      return null;
+    }
+
+    if (!data) {
+      console.error('No data returned from Supabase');
+      return null;
+    }
+
+    // Converti i nomi delle colonne da snake_case a camelCase
+    const formattedData: Tournament = {
+      id: data.id,
+      name: data.name,
+      participantCount: data.participant_count,
+      inviteCode: data.invite_code,
+      status: data.status,
+      createdAt: data.created_at,
+      players: data.players,
+      rounds: data.rounds,
+      currentRound: data.current_round
+    };
+
+    console.log('Successfully created tournament:', formattedData);
+    return formattedData;
+  } catch (error) {
+    console.error('Unexpected error creating tournament:', error);
     return null;
   }
-
-  return data;
 };
 
 export const updateTournament = async (id: string, updates: Partial<Tournament>): Promise<Tournament | null> => {

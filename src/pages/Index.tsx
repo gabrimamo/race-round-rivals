@@ -55,7 +55,9 @@ const Index = () => {
     };
 
     try {
+      console.log('Creating tournament with data:', newTournament);
       const result = await createTournament(newTournament);
+      console.log('Create tournament result:', result);
       
       if (result) {
         setTournaments(prev => [...prev, result]);
@@ -63,6 +65,7 @@ const Index = () => {
         setShowCreateForm(false);
         navigate(`/admin/${result.id}`);
       } else {
+        console.error('Failed to create tournament: No result returned');
         toast({
           title: "Error creating tournament",
           description: "Please try again.",
