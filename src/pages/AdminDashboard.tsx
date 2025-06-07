@@ -40,6 +40,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [tournament, setTournament] = useState<TournamentData | null>(null);
   const [showInviteLink, setShowInviteLink] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const loadTournament = async () => {
     if (!tournamentId) return;
@@ -99,8 +100,11 @@ const AdminDashboard = () => {
   useEffect(() => {
     loadTournament();
 
-    // Imposta un intervallo per aggiornare i dati ogni 5 secondi
-    const interval = setInterval(loadTournament, 5000);
+    // Imposta un intervallo per aggiornare i dati ogni 3 secondi
+    const interval = setInterval(() => {
+      loadTournament();
+      setRefreshKey(prev => prev + 1);
+    }, 3000);
 
     return () => clearInterval(interval);
   }, [tournamentId, navigate]);
@@ -170,76 +174,87 @@ const AdminDashboard = () => {
     }
   };
 
-  const endCurrentRound = () => {
+  const endCurrentRound = async () => {
     if (!tournament) return;
 
     const currentRound = tournament.rounds[tournament.currentRound];
-    if (!currentRound || !currentRound.completed) {
+    if (!currentRound) return;
+
+    try {
+      // Calcola i punti per ogni giocatore
+      const updatedPlayers = tournament.players.map(player => {
+        const playerPosition = currentRound.positions[player.id];
+        const points = playerPosition ? calculatePoints(playerPosition, tournament.players.length) : 0;
+        
+        // Calcola i voti MVP
+        const mvpVotes = Object.values(currentRound.mvpVotes || {}).filter(v => v === player.id).length;
+        const mvpBonus = mvpVotes > 0 ? 1 : 0;
+
+        return {
+          ...player,
+          totalPoints: player.totalPoints + points + mvpBonus,
+          positions: [...player.positions, playerPosition || 0],
+          mvpVotes: player.mvpVotes + mvpVotes
+        };
+      });
+
+      // Crea il nuovo round
+      const newRound: Round = {
+        id: tournament.currentRound + 1,
+        positions: {},
+        mvpVotes: {},
+        completed: false
+      };
+
+      const updatedTournament = {
+        ...tournament,
+        players: updatedPlayers,
+        rounds: [...tournament.rounds, newRound],
+        currentRound: tournament.currentRound + 1
+      };
+
+      const result = await updateTournament(tournament.id, updatedTournament);
+      
+      if (result) {
+        setTournament(result);
+        toast({
+          title: "Round ended!",
+          description: "Points have been calculated and a new round has started.",
+        });
+      }
+    } catch (error) {
+      console.error('Error ending round:', error);
       toast({
-        title: "Round not complete",
-        description: "Wait for all players to submit their positions.",
+        title: "Error ending round",
+        description: "There was an error ending the round. Please try again.",
         variant: "destructive"
       });
-      return;
     }
-
-    // Start new round
-    const newRound: Round = {
-      id: tournament.currentRound + 1,
-      positions: {},
-      mvpVotes: {},
-      completed: false
-    };
-
-    const updatedTournament = {
-      ...tournament,
-      rounds: [...tournament.rounds, newRound],
-      currentRound: tournament.currentRound + 1
-    };
-
-    setTournament(updatedTournament);
-    localStorage.setItem(`tournament_${tournament.id}`, JSON.stringify(updatedTournament));
-    
-    toast({
-      title: "New round started!",
-      description: `Round ${newRound.id + 1} is now active.`,
-    });
   };
 
   const closeTournament = async () => {
     if (!tournament) return;
 
     try {
-      const updatedTournament = { 
-        ...tournament, 
-        status: 'deleted' as const
+      const updatedTournament = {
+        ...tournament,
+        status: 'completed' as const
       };
 
       const result = await updateTournament(tournament.id, updatedTournament);
       
       if (result) {
-        // Rimuovi il torneo dal localStorage
-        localStorage.removeItem(`tournament_${tournament.id}`);
-        
+        setTournament(result);
         toast({
-          title: "Torneo chiuso",
-          description: "Il torneo è stato chiuso con successo.",
-        });
-
-        // Naviga alla home page
-        navigate('/');
-      } else {
-        toast({
-          title: "Errore nella chiusura del torneo",
-          description: "Si è verificato un errore durante la chiusura del torneo.",
-          variant: "destructive"
+          title: "Tournament completed!",
+          description: "The tournament has been closed and the final results are now available.",
         });
       }
     } catch (error) {
       console.error('Error closing tournament:', error);
       toast({
-        title: "Errore nella chiusura del torneo",
-        description: "Si è verificato un errore imprevisto.",
+        title: "Error closing tournament",
+        description: "There was an error closing the tournament. Please try again.",
         variant: "destructive"
       });
     }
@@ -285,6 +300,26 @@ const AdminDashboard = () => {
     
     const submittedCount = Object.keys(currentRound.positions).length;
     return `${submittedCount}/${tournament.players.length} positions submitted`;
+  };
+
+  // Funzione per ottenere il vincitore MVP del round corrente
+  const getCurrentRoundMVP = () => {
+    if (!tournament) return null;
+    const currentRound = tournament.rounds[tournament.currentRound];
+    if (!currentRound || !currentRound.mvpVotes) return null;
+
+    const voteCount: { [key: string]: number } = {};
+    Object.values(currentRound.mvpVotes).forEach(vote => {
+      voteCount[vote] = (voteCount[vote] || 0) + 1;
+    });
+
+    const maxVotes = Math.max(...Object.values(voteCount));
+    const winners = Object.entries(voteCount)
+      .filter(([_, count]) => count === maxVotes)
+      .map(([playerId]) => playerId);
+
+    if (winners.length === 0) return null;
+    return tournament.players.find(p => p.id === winners[0]);
   };
 
   if (!tournament) {
@@ -429,6 +464,7 @@ const AdminDashboard = () => {
                     <Button 
                       onClick={endCurrentRound}
                       className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700"
+                      disabled={Object.keys(tournament.rounds[tournament.currentRound]?.positions || {}).length === 0}
                     >
                       End Current Round
                     </Button>
@@ -555,6 +591,94 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Current Round Status */}
+        {tournament.status === 'active' && (
+          <Card className="mt-8 bg-white/10 backdrop-blur-sm border-white/20 text-white">
+            <CardHeader>
+              <CardTitle>Current Round</CardTitle>
+              <CardDescription className="text-purple-200">
+                Round {tournament.currentRound + 1}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="text-sm text-white/70">Positions Submitted</p>
+                <p className="text-lg font-semibold">
+                  {Object.keys(tournament.rounds[tournament.currentRound]?.positions || {}).length}/{tournament.players.length}
+                </p>
+              </div>
+
+              {/* MVP Winner Display */}
+              {getCurrentRoundMVP() && (
+                <div className="mt-4 pt-4 border-t border-white/20">
+                  <div className="text-center">
+                    <Crown className="h-8 w-8 mx-auto mb-2 text-yellow-500" />
+                    <p className="text-lg font-medium text-yellow-500">
+                      Round MVP: {getCurrentRoundMVP()?.nickname}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <Button 
+                onClick={endCurrentRound}
+                className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700"
+                disabled={Object.keys(tournament.rounds[tournament.currentRound]?.positions || {}).length === 0}
+              >
+                End Current Round
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Current Round Leaderboard */}
+        {tournament.status === 'active' && (
+          <Card className="mt-8 bg-white/10 backdrop-blur-sm border-white/20 text-white">
+            <CardHeader>
+              <CardTitle>Current Round Leaderboard</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {tournament.players
+                  .sort((a, b) => {
+                    const aPos = tournament.rounds[tournament.currentRound]?.positions[a.id];
+                    const bPos = tournament.rounds[tournament.currentRound]?.positions[b.id];
+                    if (aPos === undefined && bPos === undefined) return 0;
+                    if (aPos === undefined) return 1;
+                    if (bPos === undefined) return -1;
+                    return aPos - bPos;
+                  })
+                  .map((player, index) => {
+                    const position = tournament.rounds[tournament.currentRound]?.positions[player.id];
+                    const mvpVotes = tournament.rounds[tournament.currentRound]?.mvpVotes || {};
+                    const voteCount = Object.values(mvpVotes).filter(v => v === player.id).length;
+
+                    return (
+                      <div 
+                        key={player.id}
+                        className="p-4 rounded-lg bg-white/5"
+                      >
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center space-x-3">
+                            <span className="text-lg font-medium">
+                              {position !== undefined ? position : '?'}
+                            </span>
+                            <span>{player.nickname}</span>
+                          </div>
+                          {voteCount > 0 && (
+                            <Badge className="bg-yellow-600">
+                              {voteCount} MVP {voteCount === 1 ? 'vote' : 'votes'}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

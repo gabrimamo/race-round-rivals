@@ -42,8 +42,9 @@ const PlayerDashboard = () => {
   const [playerId, setPlayerId] = useState<string | null>(null);
   const [selectedPosition, setSelectedPosition] = useState<string>('');
   const [selectedMVP, setSelectedMVP] = useState<string>('');
-  const [hasSubmittedPosition, setHasSubmittedPosition] = useState(false);
-  const [hasSubmittedMVP, setHasSubmittedMVP] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmittingMVP, setIsSubmittingMVP] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const loadTournament = async () => {
     if (!tournamentId) return;
@@ -97,8 +98,8 @@ const PlayerDashboard = () => {
         if (currentRound) {
           const savedPlayerId = localStorage.getItem(`player_${tournamentId}`);
           if (savedPlayerId) {
-            setHasSubmittedPosition(!!currentRound.positions[savedPlayerId]);
-            setHasSubmittedMVP(!!currentRound.mvpVotes[savedPlayerId]);
+            setSelectedPosition(currentRound.positions[savedPlayerId]?.toString() || '');
+            setSelectedMVP(currentRound.mvpVotes[savedPlayerId] || '');
           }
         }
       }
@@ -124,13 +125,33 @@ const PlayerDashboard = () => {
     setPlayerId(savedPlayerId);
     loadTournament();
 
-    // Imposta un intervallo per aggiornare i dati ogni 5 secondi
-    const interval = setInterval(loadTournament, 5000);
+    // Imposta un intervallo per aggiornare i dati ogni 3 secondi
+    const interval = setInterval(() => {
+      loadTournament();
+      setRefreshKey(prev => prev + 1);
+    }, 3000);
 
     return () => clearInterval(interval);
   }, [tournamentId, navigate]);
 
-  const submitPosition = () => {
+  // Funzione per ottenere le posizioni disponibili
+  const getAvailablePositions = () => {
+    if (!tournament) return [];
+    const currentRound = tournament.rounds[tournament.currentRound];
+    if (!currentRound) return [];
+
+    const takenPositions = Object.values(currentRound.positions);
+    return Array.from({ length: tournament.players.length }, (_, i) => i + 1)
+      .filter(pos => !takenPositions.includes(pos));
+  };
+
+  // Funzione per ottenere i giocatori disponibili per il voto MVP
+  const getAvailableMVPPlayers = () => {
+    if (!tournament || !playerId) return [];
+    return tournament.players.filter(p => p.id !== playerId);
+  };
+
+  const submitPosition = async () => {
     if (!tournament || !playerId || !selectedPosition) return;
 
     const position = parseInt(selectedPosition);
@@ -156,128 +177,116 @@ const PlayerDashboard = () => {
       return;
     }
 
-    // Update round with player's position
-    const updatedRound = {
-      ...currentRound,
-      positions: {
-        ...currentRound.positions,
-        [playerId]: position
-      }
-    };
+    setIsSubmitting(true);
 
-    // Check if all players have submitted
-    const allSubmitted = Object.keys(updatedRound.positions).length === tournament.players.length;
-    if (allSubmitted) {
-      updatedRound.completed = true;
-      
-      // Calculate and update points
-      const updatedPlayers = tournament.players.map(player => {
-        const playerPosition = updatedRound.positions[player.id];
-        if (playerPosition) {
-          const points = calculatePoints(playerPosition, tournament.players.length);
-          return {
-            ...player,
-            totalPoints: player.totalPoints + points,
-            positions: [...player.positions, playerPosition]
-          };
+    try {
+      // Update round with player's position
+      const updatedRound = {
+        ...currentRound,
+        positions: {
+          ...currentRound.positions,
+          [playerId]: position
         }
-        return player;
+      };
+
+      // Check if all players have submitted
+      const allSubmitted = Object.keys(updatedRound.positions).length === tournament.players.length;
+
+      const updatedTournament = {
+        ...tournament,
+        rounds: tournament.rounds.map((r, i) => 
+          i === tournament.currentRound ? updatedRound : r
+        )
+      };
+
+      const result = await updateTournament(tournament.id, updatedTournament);
+      
+      if (result) {
+        setTournament(result);
+        setSelectedPosition('');
+        toast({
+          title: "Position submitted!",
+          description: allSubmitted 
+            ? "All players have submitted their positions. Waiting for admin to end the round."
+            : "Waiting for other players to submit their positions.",
+        });
+      }
+    } catch (error) {
+      console.error('Error submitting position:', error);
+      toast({
+        title: "Error submitting position",
+        description: "There was an error submitting your position. Please try again.",
+        variant: "destructive"
       });
-
-      const updatedTournament = {
-        ...tournament,
-        players: updatedPlayers,
-        rounds: tournament.rounds.map((round, index) => 
-          index === tournament.currentRound ? updatedRound : round
-        )
-      };
-
-      setTournament(updatedTournament);
-      localStorage.setItem(`tournament_${tournament.id}`, JSON.stringify(updatedTournament));
-    } else {
-      const updatedTournament = {
-        ...tournament,
-        rounds: tournament.rounds.map((round, index) => 
-          index === tournament.currentRound ? updatedRound : round
-        )
-      };
-
-      setTournament(updatedTournament);
-      localStorage.setItem(`tournament_${tournament.id}`, JSON.stringify(updatedTournament));
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setHasSubmittedPosition(true);
-    toast({
-      title: "Position submitted!",
-      description: `You finished in ${getOrdinal(position)} place.`,
-    });
   };
 
-  const submitMVP = () => {
+  const submitMVP = async () => {
     if (!tournament || !playerId || !selectedMVP) return;
 
     const currentRound = tournament.rounds[tournament.currentRound];
     if (!currentRound) return;
 
-    const updatedRound = {
-      ...currentRound,
-      mvpVotes: {
-        ...currentRound.mvpVotes,
-        [playerId]: selectedMVP
+    setIsSubmittingMVP(true);
+
+    try {
+      const updatedRound = {
+        ...currentRound,
+        mvpVotes: {
+          ...currentRound.mvpVotes,
+          [playerId]: selectedMVP
+        }
+      };
+
+      const updatedTournament = {
+        ...tournament,
+        rounds: tournament.rounds.map((r, i) => 
+          i === tournament.currentRound ? updatedRound : r
+        )
+      };
+
+      const result = await updateTournament(tournament.id, updatedTournament);
+      
+      if (result) {
+        setTournament(result);
+        setSelectedMVP('');
+        toast({
+          title: "MVP vote submitted!",
+          description: "Thank you for voting for the MVP of this round.",
+        });
       }
-    };
-
-    // Check if all players have voted
-    const allVoted = Object.keys(updatedRound.mvpVotes).length === tournament.players.length;
-    if (allVoted) {
-      // Calculate MVP votes and award bonus point
-      const voteCount: { [playerId: string]: number } = {};
-      Object.values(updatedRound.mvpVotes).forEach(votedPlayerId => {
-        voteCount[votedPlayerId] = (voteCount[votedPlayerId] || 0) + 1;
+    } catch (error) {
+      console.error('Error submitting MVP vote:', error);
+      toast({
+        title: "Error submitting MVP vote",
+        description: "There was an error submitting your MVP vote. Please try again.",
+        variant: "destructive"
       });
-
-      const mvpPlayerId = Object.keys(voteCount).reduce((a, b) => 
-        voteCount[a] > voteCount[b] ? a : b
-      );
-
-      const updatedPlayers = tournament.players.map(player => {
-        const votes = voteCount[player.id] || 0;
-        const bonusPoint = player.id === mvpPlayerId ? 1 : 0;
-        return {
-          ...player,
-          totalPoints: player.totalPoints + bonusPoint,
-          mvpVotes: player.mvpVotes + votes
-        };
-      });
-
-      const updatedTournament = {
-        ...tournament,
-        players: updatedPlayers,
-        rounds: tournament.rounds.map((round, index) => 
-          index === tournament.currentRound ? updatedRound : round
-        )
-      };
-
-      setTournament(updatedTournament);
-      localStorage.setItem(`tournament_${tournament.id}`, JSON.stringify(updatedTournament));
-    } else {
-      const updatedTournament = {
-        ...tournament,
-        rounds: tournament.rounds.map((round, index) => 
-          index === tournament.currentRound ? updatedRound : round
-        )
-      };
-
-      setTournament(updatedTournament);
-      localStorage.setItem(`tournament_${tournament.id}`, JSON.stringify(updatedTournament));
+    } finally {
+      setIsSubmittingMVP(false);
     }
+  };
 
-    setHasSubmittedMVP(true);
-    const mvpPlayer = tournament.players.find(p => p.id === selectedMVP);
-    toast({
-      title: "MVP vote submitted!",
-      description: `You voted for ${mvpPlayer?.nickname} as MVP.`,
+  // Funzione per ottenere il vincitore MVP del round corrente
+  const getCurrentRoundMVP = () => {
+    if (!tournament) return null;
+    const currentRound = tournament.rounds[tournament.currentRound];
+    if (!currentRound || !currentRound.mvpVotes) return null;
+
+    const voteCount: { [key: string]: number } = {};
+    Object.values(currentRound.mvpVotes).forEach(vote => {
+      voteCount[vote] = (voteCount[vote] || 0) + 1;
     });
+
+    const maxVotes = Math.max(...Object.values(voteCount));
+    const winners = Object.entries(voteCount)
+      .filter(([_, count]) => count === maxVotes)
+      .map(([playerId]) => playerId);
+
+    if (winners.length === 0) return null;
+    return tournament.players.find(p => p.id === winners[0]);
   };
 
   const calculatePoints = (position: number, totalPlayers: number): number => {
@@ -309,36 +318,11 @@ const PlayerDashboard = () => {
     return tournament.rounds[tournament.currentRound];
   };
 
-  const getAvailablePositions = () => {
-    if (!tournament) return [];
-    
-    const currentRound = getCurrentRound();
-    const totalPlayers = tournament.players.length;
-    const availablePositions = [];
-    
-    // If there's no current round or no positions taken yet, show all positions
-    if (!currentRound) {
-      for (let i = 1; i <= totalPlayers; i++) {
-        availablePositions.push(i);
-      }
-      return availablePositions;
-    }
-    
-    // If there's a current round, filter out taken positions
-    const takenPositions = Object.values(currentRound.positions);
-    
-    for (let i = 1; i <= totalPlayers; i++) {
-      if (!takenPositions.includes(i)) {
-        availablePositions.push(i);
-      }
-    }
-    
-    return availablePositions;
-  };
-
-  const getOtherPlayers = () => {
-    if (!tournament || !playerId) return [];
-    return tournament.players.filter(p => p.id !== playerId);
+  const getCurrentRoundStatus = () => {
+    if (!tournament) return "No current round information available";
+    const currentRound = tournament.rounds[tournament.currentRound];
+    if (!currentRound) return "No current round information available";
+    return `Round ${tournament.currentRound + 1} is active. Submit your race position.`;
   };
 
   if (!tournament) {
@@ -451,6 +435,138 @@ const PlayerDashboard = () => {
               </div>
             </CardContent>
           </Card>
+        ) : tournament.status === 'active' ? (
+          <div className="grid lg:grid-cols-2 gap-8">
+            {/* Current Round */}
+            <Card className="bg-white/10 backdrop-blur-sm border-white/20 text-white">
+              <CardHeader>
+                <CardTitle>Round {tournament.currentRound + 1}</CardTitle>
+                <CardDescription className="text-purple-200">
+                  Submit your race position
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <Label htmlFor="position" className="text-white">Your Position</Label>
+                  <select
+                    id="position"
+                    value={selectedPosition}
+                    onChange={(e) => setSelectedPosition(e.target.value)}
+                    className="w-full mt-1 bg-white/10 border-white/20 text-white rounded-md"
+                    disabled={isSubmitting || currentPlayer?.positions[tournament.currentRound] !== undefined}
+                  >
+                    <option value="">Select your position</option>
+                    {getAvailablePositions().map(pos => (
+                      <option key={pos} value={pos}>{pos}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <Button 
+                  onClick={submitPosition}
+                  disabled={!selectedPosition || isSubmitting || currentPlayer?.positions[tournament.currentRound] !== undefined}
+                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                >
+                  {isSubmitting ? 'Submitting...' : 'Submit Position'}
+                </Button>
+
+                {/* MVP Vote Section */}
+                {currentPlayer?.positions[tournament.currentRound] !== undefined && (
+                  <div className="mt-6 pt-6 border-t border-white/20">
+                    <Label htmlFor="mvp" className="text-white">Vote for MVP (Optional)</Label>
+                    <select
+                      id="mvp"
+                      value={selectedMVP}
+                      onChange={(e) => setSelectedMVP(e.target.value)}
+                      className="w-full mt-1 bg-white/10 border-white/20 text-white rounded-md"
+                      disabled={isSubmittingMVP || currentPlayer?.mvpVotes[tournament.currentRound] !== undefined}
+                    >
+                      <option value="">Select MVP</option>
+                      {getAvailableMVPPlayers().map(player => (
+                        <option key={player.id} value={player.id}>{player.nickname}</option>
+                      ))}
+                    </select>
+                    <Button 
+                      onClick={submitMVP}
+                      disabled={!selectedMVP || isSubmittingMVP || currentPlayer?.mvpVotes[tournament.currentRound] !== undefined}
+                      className="w-full mt-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                    >
+                      {isSubmittingMVP ? 'Submitting...' : 'Submit MVP Vote'}
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Leaderboard */}
+            <Card className="bg-white/10 backdrop-blur-sm border-white/20 text-white">
+              <CardHeader>
+                <CardTitle>Current Round Leaderboard</CardTitle>
+                <CardDescription className="text-purple-200">
+                  {getCurrentRoundStatus()}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {tournament.players
+                    .sort((a, b) => {
+                      const aPos = tournament.rounds[tournament.currentRound]?.positions[a.id];
+                      const bPos = tournament.rounds[tournament.currentRound]?.positions[b.id];
+                      if (aPos === undefined && bPos === undefined) return 0;
+                      if (aPos === undefined) return 1;
+                      if (bPos === undefined) return -1;
+                      return aPos - bPos;
+                    })
+                    .map((player, index) => {
+                      const position = tournament.rounds[tournament.currentRound]?.positions[player.id];
+                      const isCurrentPlayer = player.id === playerId;
+                      const mvpVotes = tournament.rounds[tournament.currentRound]?.mvpVotes || {};
+                      const voteCount = Object.values(mvpVotes).filter(v => v === player.id).length;
+
+                      return (
+                        <div 
+                          key={player.id}
+                          className={`p-4 rounded-lg ${
+                            isCurrentPlayer 
+                              ? 'bg-purple-600/30 border border-purple-400' 
+                              : 'bg-white/5'
+                          }`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <div className="flex items-center space-x-3">
+                              <span className="text-lg font-medium">
+                                {position !== undefined ? position : '?'}
+                              </span>
+                              <span>{player.nickname}</span>
+                              {isCurrentPlayer && (
+                                <Badge className="bg-purple-600">You</Badge>
+                              )}
+                            </div>
+                            {voteCount > 0 && (
+                              <Badge className="bg-yellow-600">
+                                {voteCount} MVP {voteCount === 1 ? 'vote' : 'votes'}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+
+                {/* MVP Winner Display */}
+                {getCurrentRoundMVP() && (
+                  <div className="mt-6 pt-6 border-t border-white/20">
+                    <div className="text-center">
+                      <Crown className="h-8 w-8 mx-auto mb-2 text-yellow-500" />
+                      <p className="text-lg font-medium text-yellow-500">
+                        Round MVP: {getCurrentRoundMVP()?.nickname}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         ) : tournament.status === 'completed' ? (
           /* Final Leaderboard View */
           <div className="text-center mb-8">
@@ -526,7 +642,7 @@ const PlayerDashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {!hasSubmittedPosition ? (
+                {!isSubmitting && currentRound && !isSubmittingMVP && (
                   <div className="space-y-4">
                     <div>
                       <Label className="text-white">Your Finishing Position</Label>
@@ -551,7 +667,9 @@ const PlayerDashboard = () => {
                       Submit Position
                     </Button>
                   </div>
-                ) : (
+                )}
+
+                {isSubmitting && (
                   <div className="text-center py-4">
                     <div className="p-4 bg-green-600/20 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                       <Target className="h-8 w-8 text-green-400" />
@@ -561,37 +679,7 @@ const PlayerDashboard = () => {
                   </div>
                 )}
 
-                {hasSubmittedPosition && currentRound && !hasSubmittedMVP && (
-                  <div className="space-y-4 pt-4 border-t border-white/20">
-                    <div>
-                      <Label className="text-white">Vote for MVP</Label>
-                      <Select value={selectedMVP} onValueChange={setSelectedMVP}>
-                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                          <SelectValue placeholder="Select MVP (not yourself)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {getOtherPlayers().map(player => (
-                            <SelectItem key={player.id} value={player.id}>
-                              {player.nickname}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-white/60 mt-1">
-                        MVP gets 1 bonus point
-                      </p>
-                    </div>
-                    <Button 
-                      onClick={submitMVP}
-                      disabled={!selectedMVP}
-                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-                    >
-                      Vote for MVP
-                    </Button>
-                  </div>
-                )}
-
-                {hasSubmittedMVP && (
+                {isSubmittingMVP && (
                   <div className="text-center py-4 border-t border-white/20">
                     <div className="p-4 bg-purple-600/20 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                       <Crown className="h-8 w-8 text-purple-400" />
