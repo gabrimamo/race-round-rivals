@@ -56,7 +56,8 @@ const AdminDashboard = () => {
 
   const copyInviteLink = () => {
     if (tournament) {
-      navigator.clipboard.writeText(tournament.inviteLink);
+      const fullInviteLink = `${window.location.origin}${tournament.inviteLink}`;
+      navigator.clipboard.writeText(fullInviteLink);
       toast({
         title: "Invite link copied!",
         description: "Share this link with players to join the tournament.",

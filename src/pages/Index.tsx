@@ -42,7 +42,7 @@ const Index = () => {
       participantCount,
       createdAt: new Date().toISOString(),
       inviteCode: inviteCode,
-      inviteLink: `${window.location.origin}/join/${inviteCode}`,
+      inviteLink: `/join/${inviteCode}`,
       status: 'waiting'
     };
 
