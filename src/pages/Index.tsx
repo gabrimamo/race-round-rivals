@@ -6,16 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Trophy, Users, Zap, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-interface Tournament {
-  id: string;
-  name: string;
-  participantCount: number;
-  createdAt: string;
-  inviteLink: string;
-  inviteCode: string;
-  status: 'waiting' | 'active' | 'completed';
-}
+import { createTournament, Tournament, supabase } from '@/lib/supabase';
+import { toast } from '@/hooks/use-toast';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -25,47 +17,66 @@ const Index = () => {
   const [participantCount, setParticipantCount] = useState(8);
 
   useEffect(() => {
-    // Load tournaments from localStorage
-    const savedTournaments = localStorage.getItem('tournaments');
-    if (savedTournaments) {
-      setTournaments(JSON.parse(savedTournaments));
-    }
+    // Load tournaments from Supabase
+    const loadTournaments = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('tournaments')
+          .select('*')
+          .order('createdAt', { ascending: false });
+
+        if (error) {
+          console.error('Error loading tournaments:', error);
+          return;
+        }
+
+        setTournaments(data || []);
+      } catch (error) {
+        console.error('Error loading tournaments:', error);
+      }
+    };
+
+    loadTournaments();
   }, []);
 
-  const createTournament = () => {
+  const handleCreateTournament = async () => {
     if (!tournamentName.trim()) return;
 
     const inviteCode = Math.random().toString(36).substring(2, 15);
-    const newTournament: Tournament = {
-      id: Math.random().toString(36).substring(2, 15),
+    const newTournament: Omit<Tournament, 'id'> = {
       name: tournamentName,
       participantCount,
       createdAt: new Date().toISOString(),
       inviteCode: inviteCode,
-      inviteLink: `/join/${inviteCode}`,
-      status: 'waiting'
-    };
-
-    // Salva il torneo nella lista dei tornei
-    const updatedTournaments = [...tournaments, newTournament];
-    setTournaments(updatedTournaments);
-    localStorage.setItem('tournaments', JSON.stringify(updatedTournaments));
-
-    // Salva i dati completi del torneo
-    const tournamentData = {
-      ...newTournament,
+      status: 'waiting',
       players: [],
       rounds: [],
       currentRound: 0
     };
-    localStorage.setItem(`tournament_${newTournament.id}`, JSON.stringify(tournamentData));
 
-    // Salva anche il codice di invito come riferimento rapido
-    localStorage.setItem(`invite_${inviteCode}`, newTournament.id);
-
-    setTournamentName('');
-    setShowCreateForm(false);
-    navigate(`/admin/${newTournament.id}`);
+    try {
+      const result = await createTournament(newTournament);
+      
+      if (result) {
+        setTournaments(prev => [...prev, result]);
+        setTournamentName('');
+        setShowCreateForm(false);
+        navigate(`/admin/${result.id}`);
+      } else {
+        toast({
+          title: "Error creating tournament",
+          description: "Please try again.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error creating tournament:', error);
+      toast({
+        title: "Error creating tournament",
+        description: "Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -151,7 +162,7 @@ const Index = () => {
                   </div>
                   <div className="flex gap-2">
                     <Button 
-                      onClick={createTournament}
+                      onClick={handleCreateTournament}
                       className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
                       disabled={!tournamentName.trim()}
                     >

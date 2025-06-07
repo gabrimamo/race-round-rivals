@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import { Trophy, Users, ArrowRight, RefreshCw } from 'lucide-react';
+import { getTournamentByInviteCode, updateTournament, Tournament } from '@/lib/supabase';
 
 interface Player {
   id: string;
@@ -15,27 +16,15 @@ interface Player {
   positions: number[];
 }
 
-interface TournamentData {
-  id: string;
-  name: string;
-  participantCount: number;
-  inviteLink: string;
-  inviteCode: string;
-  players: Player[];
-  rounds: any[];
-  currentRound: number;
-  status: 'waiting' | 'active' | 'completed';
-}
-
 const JoinTournament = () => {
   const { inviteCode } = useParams();
   const navigate = useNavigate();
-  const [tournament, setTournament] = useState<TournamentData | null>(null);
+  const [tournament, setTournament] = useState<Tournament | null>(null);
   const [nickname, setNickname] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState('');
 
-  const loadTournament = () => {
+  const loadTournament = async () => {
     console.log('Looking for tournament with invite code:', inviteCode);
     
     if (!inviteCode) {
@@ -43,64 +32,20 @@ const JoinTournament = () => {
       return;
     }
 
-    // Prima prova a trovare il torneo usando il codice di invito diretto
-    const tournamentId = localStorage.getItem(`invite_${inviteCode}`);
-    if (tournamentId) {
-      const tournamentData = localStorage.getItem(`tournament_${tournamentId}`);
-      if (tournamentData) {
-        try {
-          const parsedTournament = JSON.parse(tournamentData);
-          console.log('Found tournament by invite code:', parsedTournament);
-          setTournament(parsedTournament);
-          setError('');
-          return;
-        } catch (parseError) {
-          console.error('Error parsing tournament data:', parseError);
-        }
-      }
-    }
-    
-    // Se non trovato, prova il metodo precedente
-    const tournaments = localStorage.getItem('tournaments');
-    if (tournaments) {
-      try {
-        const tournamentList = JSON.parse(tournaments);
-        console.log('Available tournaments:', tournamentList);
-        
-        const foundTournament = tournamentList.find((t: any) => {
-          const inviteCodeFromLink = t.inviteLink.split('/').pop();
-          return inviteCodeFromLink === inviteCode;
-        });
-        
+    try {
+      const foundTournament = await getTournamentByInviteCode(inviteCode);
+      
+      if (foundTournament) {
         console.log('Found tournament:', foundTournament);
-        
-        if (foundTournament) {
-          const tournamentData = localStorage.getItem(`tournament_${foundTournament.id}`);
-          if (tournamentData) {
-            try {
-              const parsedTournament = JSON.parse(tournamentData);
-              console.log('Tournament data:', parsedTournament);
-              setTournament(parsedTournament);
-              setError('');
-            } catch (parseError) {
-              console.error('Error parsing tournament data:', parseError);
-              setError('Tournament data is corrupted.');
-            }
-          } else {
-            console.log('No tournament data found for ID:', foundTournament.id);
-            setError('Tournament data not found.');
-          }
-        } else {
-          console.log('No tournament found with invite code:', inviteCode);
-          setError('Tournament not found or invite link is invalid.');
-        }
-      } catch (parseError) {
-        console.error('Error parsing tournaments list:', parseError);
-        setError('Error loading tournaments.');
+        setTournament(foundTournament);
+        setError('');
+      } else {
+        console.log('No tournament found with invite code:', inviteCode);
+        setError('Tournament not found or invite link is invalid.');
       }
-    } else {
-      console.log('No tournaments found in localStorage');
-      setError('Tournament not found or invite link is invalid.');
+    } catch (error) {
+      console.error('Error loading tournament:', error);
+      setError('Error loading tournament. Please try again.');
     }
   };
 
@@ -113,68 +58,87 @@ const JoinTournament = () => {
 
     setIsJoining(true);
 
-    // Check if nickname is already taken
-    const nicknameExists = tournament.players.some(
-      player => player.nickname.toLowerCase() === nickname.toLowerCase()
-    );
+    try {
+      // Check if nickname is already taken
+      const nicknameExists = tournament.players.some(
+        player => player.nickname.toLowerCase() === nickname.toLowerCase()
+      );
 
-    if (nicknameExists) {
+      if (nicknameExists) {
+        toast({
+          title: "Nickname already taken",
+          description: "Please choose a different nickname.",
+          variant: "destructive"
+        });
+        setIsJoining(false);
+        return;
+      }
+
+      // Check if tournament is full
+      if (tournament.players.length >= tournament.participantCount) {
+        toast({
+          title: "Tournament is full",
+          description: "This tournament has reached its maximum number of participants.",
+          variant: "destructive"
+        });
+        setIsJoining(false);
+        return;
+      }
+
+      // Check if tournament has already started
+      if (tournament.status !== 'waiting') {
+        toast({
+          title: "Tournament already started",
+          description: "You cannot join a tournament that has already begun.",
+          variant: "destructive"
+        });
+        setIsJoining(false);
+        return;
+      }
+
+      const newPlayer: Player = {
+        id: Math.random().toString(36).substring(2, 15),
+        nickname: nickname.trim(),
+        totalPoints: 0,
+        mvpVotes: 0,
+        positions: []
+      };
+
+      const updatedTournament = {
+        ...tournament,
+        players: [...tournament.players, newPlayer]
+      };
+
+      const result = await updateTournament(tournament.id, updatedTournament);
+      
+      if (result) {
+        // Store player ID for this tournament
+        localStorage.setItem(`player_${tournament.id}`, newPlayer.id);
+
+        toast({
+          title: "Successfully joined!",
+          description: `Welcome to ${tournament.name}, ${nickname}!`,
+        });
+
+        // Navigate to player dashboard
+        navigate(`/player/${tournament.id}`);
+      } else {
+        toast({
+          title: "Error joining tournament",
+          description: "Please try again.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error joining tournament:', error);
       toast({
-        title: "Nickname already taken",
-        description: "Please choose a different nickname.",
+        title: "Error joining tournament",
+        description: "Please try again.",
         variant: "destructive"
       });
+    } finally {
       setIsJoining(false);
-      return;
     }
-
-    // Check if tournament is full
-    if (tournament.players.length >= tournament.participantCount) {
-      toast({
-        title: "Tournament is full",
-        description: "This tournament has reached its maximum number of participants.",
-        variant: "destructive"
-      });
-      setIsJoining(false);
-      return;
-    }
-
-    // Check if tournament has already started
-    if (tournament.status !== 'waiting') {
-      toast({
-        title: "Tournament already started",
-        description: "You cannot join a tournament that has already begun.",
-        variant: "destructive"
-      });
-      setIsJoining(false);
-      return;
-    }
-
-    const newPlayer: Player = {
-      id: Math.random().toString(36).substring(2, 15),
-      nickname: nickname.trim(),
-      totalPoints: 0,
-      mvpVotes: 0,
-      positions: []
-    };
-
-    const updatedTournament = {
-      ...tournament,
-      players: [...tournament.players, newPlayer]
-    };
-
-    localStorage.setItem(`tournament_${tournament.id}`, JSON.stringify(updatedTournament));
-    
-    // Store player ID for this tournament
-    localStorage.setItem(`player_${tournament.id}`, newPlayer.id);
-
-    toast({
-      title: "Successfully joined!",
-      description: `Welcome to ${tournament.name}, ${nickname}!`,
-    });
-
-    // Navigate to player dashboard
-    navigate(`/player/${tournament.id}`);
   };
 
   if (error) {
