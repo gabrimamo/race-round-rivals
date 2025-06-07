@@ -35,7 +35,26 @@ export const getTournamentByInviteCode = async (inviteCode: string): Promise<Tou
     return null;
   }
 
-  return data;
+  if (!data) {
+    console.error('No tournament found with invite code:', inviteCode);
+    return null;
+  }
+
+  // Converti i nomi delle colonne da snake_case a camelCase
+  const formattedData: Tournament = {
+    id: data.id,
+    name: data.name,
+    participantCount: data.participant_count,
+    inviteCode: data.invite_code,
+    status: data.status,
+    createdAt: data.created_at,
+    players: data.players || [],
+    rounds: data.rounds || [],
+    currentRound: data.current_round || 0
+  };
+
+  console.log('Found tournament:', formattedData);
+  return formattedData;
 };
 
 export const createTournament = async (tournament: Omit<Tournament, 'id'>): Promise<Tournament | null> => {
@@ -108,9 +127,21 @@ export const createTournament = async (tournament: Omit<Tournament, 'id'>): Prom
 };
 
 export const updateTournament = async (id: string, updates: Partial<Tournament>): Promise<Tournament | null> => {
+  // Converti i nomi delle colonne da camelCase a snake_case per l'aggiornamento
+  const formattedUpdates = {
+    name: updates.name,
+    participant_count: updates.participantCount,
+    invite_code: updates.inviteCode,
+    status: updates.status,
+    created_at: updates.createdAt,
+    players: updates.players,
+    rounds: updates.rounds,
+    current_round: updates.currentRound
+  };
+
   const { data, error } = await supabase
     .from('tournaments')
-    .update(updates)
+    .update(formattedUpdates)
     .eq('id', id)
     .select()
     .single();
@@ -120,5 +151,24 @@ export const updateTournament = async (id: string, updates: Partial<Tournament>)
     return null;
   }
 
-  return data;
+  if (!data) {
+    console.error('No data returned after update');
+    return null;
+  }
+
+  // Converti i nomi delle colonne da snake_case a camelCase per il risultato
+  const formattedData: Tournament = {
+    id: data.id,
+    name: data.name,
+    participantCount: data.participant_count,
+    inviteCode: data.invite_code,
+    status: data.status,
+    createdAt: data.created_at,
+    players: data.players || [],
+    rounds: data.rounds || [],
+    currentRound: data.current_round || 0
+  };
+
+  console.log('Successfully updated tournament:', formattedData);
+  return formattedData;
 }; 
