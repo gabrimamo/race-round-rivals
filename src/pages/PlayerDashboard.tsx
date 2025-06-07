@@ -439,7 +439,7 @@ const PlayerDashboard = () => {
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Form per l'inserimento della posizione */}
-                {!currentPlayer?.positions[tournament.currentRound] && !showMVPForm && (
+                {!currentPlayer?.positions[tournament.currentRound] && !showMVPForm && !hasVotedMVP && (
                   <div className="mt-8">
                     <h2 className="text-2xl font-bold mb-4">Inserisci la tua posizione</h2>
                     <div className="bg-gray-800 rounded-lg p-6">
@@ -508,6 +508,18 @@ const PlayerDashboard = () => {
                           Salta
                         </Button>
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Messaggio di attesa dopo il voto MVP */}
+                {hasVotedMVP && (
+                  <div className="mt-8">
+                    <div className="bg-gray-800 rounded-lg p-6 text-center">
+                      <h2 className="text-2xl font-bold mb-4">Attendi il prossimo round</h2>
+                      <p className="text-gray-300">
+                        Hai completato tutte le azioni per questo round. Attendi che l'admin avvii il prossimo round.
+                      </p>
                     </div>
                   </div>
                 )}
