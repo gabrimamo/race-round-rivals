@@ -129,48 +129,58 @@ export const createTournament = async (tournament: Omit<Tournament, 'id'>): Prom
 };
 
 export const updateTournament = async (id: string, updates: Partial<Tournament>): Promise<Tournament | null> => {
-  // Converti i nomi delle colonne da camelCase a snake_case per l'aggiornamento
-  const formattedUpdates = {
-    name: updates.name,
-    participant_count: updates.participantCount,
-    invite_code: updates.inviteCode,
-    status: updates.status,
-    created_at: updates.createdAt,
-    players: updates.players,
-    rounds: updates.rounds,
-    current_round: updates.currentRound
-  };
+  try {
+    console.log('Updating tournament with ID:', id);
+    console.log('Updates:', updates);
 
-  const { data, error } = await supabase
-    .from('tournaments')
-    .update(formattedUpdates)
-    .eq('id', id)
-    .select()
-    .single();
+    // Converti i nomi delle colonne da camelCase a snake_case per l'aggiornamento
+    const formattedUpdates = {
+      name: updates.name,
+      participant_count: updates.participantCount,
+      invite_code: updates.inviteCode,
+      status: updates.status,
+      created_at: updates.createdAt,
+      players: updates.players,
+      rounds: updates.rounds,
+      current_round: updates.currentRound
+    };
 
-  if (error) {
-    console.error('Error updating tournament:', error);
+    console.log('Formatted updates for Supabase:', formattedUpdates);
+
+    const { data, error } = await supabase
+      .from('tournaments')
+      .update(formattedUpdates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating tournament:', error);
+      return null;
+    }
+
+    if (!data) {
+      console.error('No data returned after update');
+      return null;
+    }
+
+    // Converti i nomi delle colonne da snake_case a camelCase per il risultato
+    const formattedData: Tournament = {
+      id: data.id,
+      name: data.name,
+      participantCount: data.participant_count,
+      inviteCode: data.invite_code,
+      status: data.status,
+      createdAt: data.created_at,
+      players: data.players || [],
+      rounds: data.rounds || [],
+      currentRound: data.current_round || 0
+    };
+
+    console.log('Successfully updated tournament:', formattedData);
+    return formattedData;
+  } catch (error) {
+    console.error('Unexpected error updating tournament:', error);
     return null;
   }
-
-  if (!data) {
-    console.error('No data returned after update');
-    return null;
-  }
-
-  // Converti i nomi delle colonne da snake_case a camelCase per il risultato
-  const formattedData: Tournament = {
-    id: data.id,
-    name: data.name,
-    participantCount: data.participant_count,
-    inviteCode: data.invite_code,
-    status: data.status,
-    createdAt: data.created_at,
-    players: data.players || [],
-    rounds: data.rounds || [],
-    currentRound: data.current_round || 0
-  };
-
-  console.log('Successfully updated tournament:', formattedData);
-  return formattedData;
 }; 

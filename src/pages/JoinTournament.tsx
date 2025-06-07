@@ -66,8 +66,8 @@ const JoinTournament = () => {
 
       if (nicknameExists) {
         toast({
-          title: "Nickname already taken",
-          description: "Please choose a different nickname.",
+          title: "Nickname già in uso",
+          description: "Scegli un nickname diverso.",
           variant: "destructive"
         });
         setIsJoining(false);
@@ -77,8 +77,8 @@ const JoinTournament = () => {
       // Check if tournament is full
       if (tournament.players.length >= tournament.participantCount) {
         toast({
-          title: "Tournament is full",
-          description: "This tournament has reached its maximum number of participants.",
+          title: "Torneo pieno",
+          description: "Questo torneo ha raggiunto il numero massimo di partecipanti.",
           variant: "destructive"
         });
         setIsJoining(false);
@@ -88,8 +88,8 @@ const JoinTournament = () => {
       // Check if tournament has already started
       if (tournament.status !== 'waiting') {
         toast({
-          title: "Tournament already started",
-          description: "You cannot join a tournament that has already begun.",
+          title: "Torneo già iniziato",
+          description: "Non puoi unirti a un torneo che è già iniziato.",
           variant: "destructive"
         });
         setIsJoining(false);
@@ -104,10 +104,15 @@ const JoinTournament = () => {
         positions: []
       };
 
+      console.log('Adding new player:', newPlayer);
+      console.log('Current tournament:', tournament);
+
       const updatedTournament = {
         ...tournament,
         players: [...tournament.players, newPlayer]
       };
+
+      console.log('Updated tournament data:', updatedTournament);
 
       const result = await updateTournament(tournament.id, updatedTournament);
       
@@ -116,24 +121,25 @@ const JoinTournament = () => {
         localStorage.setItem(`player_${tournament.id}`, newPlayer.id);
 
         toast({
-          title: "Successfully joined!",
-          description: `Welcome to ${tournament.name}, ${nickname}!`,
+          title: "Unito con successo!",
+          description: `Benvenuto in ${tournament.name}, ${nickname}!`,
         });
 
         // Navigate to player dashboard
         navigate(`/player/${tournament.id}`);
       } else {
+        console.error('Failed to update tournament with new player');
         toast({
-          title: "Error joining tournament",
-          description: "Please try again.",
+          title: "Errore nell'unione al torneo",
+          description: "Si è verificato un errore. Riprova più tardi.",
           variant: "destructive"
         });
       }
     } catch (error) {
       console.error('Error joining tournament:', error);
       toast({
-        title: "Error joining tournament",
-        description: "Please try again.",
+        title: "Errore nell'unione al torneo",
+        description: "Si è verificato un errore imprevisto. Riprova più tardi.",
         variant: "destructive"
       });
     } finally {
