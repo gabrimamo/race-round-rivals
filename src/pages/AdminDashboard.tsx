@@ -26,7 +26,7 @@ interface TournamentData {
   id: string;
   name: string;
   participantCount: number;
-  inviteLink: string;
+  inviteCode: string;
   players: Player[];
   rounds: Round[];
   currentRound: number;
@@ -56,11 +56,13 @@ const AdminDashboard = () => {
 
   const copyInviteLink = () => {
     if (tournament) {
-      const fullInviteLink = `${window.location.origin}${tournament.inviteLink}`;
+      const baseUrl = window.location.origin;
+      const fullInviteLink = `${baseUrl}/join/${tournament.inviteCode}`;
+      
       navigator.clipboard.writeText(fullInviteLink);
       toast({
-        title: "Invite link copied!",
-        description: "Share this link with players to join the tournament.",
+        title: "Link di invito copiato!",
+        description: "Condividi questo link con i giocatori per unirsi al torneo.",
       });
     }
   };
@@ -295,7 +297,7 @@ const AdminDashboard = () => {
                 <CardContent>
                   <div className="flex gap-2">
                     <Input 
-                      value={tournament.inviteLink}
+                      value={tournament.inviteCode}
                       readOnly
                       className="bg-white/10 border-white/20 text-white text-sm"
                     />
