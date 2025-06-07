@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { Trophy, Users, Share2, Play, ArrowLeft, Crown, Copy, RefreshCw } from 'lucide-react';
+import { supabase, updateTournament } from '@/lib/supabase';
 
 interface Player {
   id: string;
@@ -31,6 +32,7 @@ interface TournamentData {
   rounds: Round[];
   currentRound: number;
   status: 'waiting' | 'active' | 'completed' | 'deleted';
+  createdAt: string;
 }
 
 const AdminDashboard = () => {
@@ -39,19 +41,68 @@ const AdminDashboard = () => {
   const [tournament, setTournament] = useState<TournamentData | null>(null);
   const [showInviteLink, setShowInviteLink] = useState(false);
 
-  const loadTournament = () => {
+  const loadTournament = async () => {
     if (!tournamentId) return;
     
-    const savedTournament = localStorage.getItem(`tournament_${tournamentId}`);
-    if (savedTournament) {
-      setTournament(JSON.parse(savedTournament));
-    } else {
-      navigate('/');
+    try {
+      // Carica i dati aggiornati da Supabase
+      const { data, error } = await supabase
+        .from('tournaments')
+        .select('*')
+        .eq('id', tournamentId)
+        .single();
+
+      if (error) {
+        console.error('Error loading tournament:', error);
+        toast({
+          title: "Errore nel caricamento del torneo",
+          description: "Non è stato possibile caricare i dati del torneo. Riprova più tardi.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (!data) {
+        console.error('No tournament found with ID:', tournamentId);
+        navigate('/');
+        return;
+      }
+
+      // Converti i nomi delle colonne da snake_case a camelCase
+      const formattedData: TournamentData = {
+        id: data.id,
+        name: data.name,
+        participantCount: data.participant_count,
+        inviteCode: data.invite_code,
+        status: data.status,
+        createdAt: data.created_at,
+        players: data.players || [],
+        rounds: data.rounds || [],
+        currentRound: data.current_round || 0
+      };
+
+      console.log('Loaded tournament data:', formattedData);
+      setTournament(formattedData);
+      
+      // Salva i dati nel localStorage
+      localStorage.setItem(`tournament_${tournamentId}`, JSON.stringify(formattedData));
+    } catch (error) {
+      console.error('Error loading tournament:', error);
+      toast({
+        title: "Errore nel caricamento del torneo",
+        description: "Si è verificato un errore imprevisto. Riprova più tardi.",
+        variant: "destructive"
+      });
     }
   };
 
   useEffect(() => {
     loadTournament();
+
+    // Imposta un intervallo per aggiornare i dati ogni 5 secondi
+    const interval = setInterval(loadTournament, 5000);
+
+    return () => clearInterval(interval);
   }, [tournamentId, navigate]);
 
   const copyInviteLink = () => {
@@ -138,17 +189,43 @@ const AdminDashboard = () => {
     });
   };
 
-  const closeTournament = () => {
+  const closeTournament = async () => {
     if (!tournament) return;
 
-    const updatedTournament = { ...tournament, status: 'completed' as const };
-    setTournament(updatedTournament);
-    localStorage.setItem(`tournament_${tournament.id}`, JSON.stringify(updatedTournament));
-    
-    toast({
-      title: "Tournament closed!",
-      description: "Players can now view the final leaderboard.",
-    });
+    try {
+      const updatedTournament = { 
+        ...tournament, 
+        status: 'deleted' as const
+      };
+
+      const result = await updateTournament(tournament.id, updatedTournament);
+      
+      if (result) {
+        // Rimuovi il torneo dal localStorage
+        localStorage.removeItem(`tournament_${tournament.id}`);
+        
+        toast({
+          title: "Torneo chiuso",
+          description: "Il torneo è stato chiuso con successo.",
+        });
+
+        // Naviga alla home page
+        navigate('/');
+      } else {
+        toast({
+          title: "Errore nella chiusura del torneo",
+          description: "Si è verificato un errore durante la chiusura del torneo.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error closing tournament:', error);
+      toast({
+        title: "Errore nella chiusura del torneo",
+        description: "Si è verificato un errore imprevisto.",
+        variant: "destructive"
+      });
+    }
   };
 
   const deleteTournament = () => {

@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { Trophy, Flag, Crown, Users, Timer, Target, RefreshCw } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 interface Player {
   id: string;
@@ -44,17 +45,55 @@ const PlayerDashboard = () => {
   const [hasSubmittedPosition, setHasSubmittedPosition] = useState(false);
   const [hasSubmittedMVP, setHasSubmittedMVP] = useState(false);
 
-  const loadTournament = () => {
+  const loadTournament = async () => {
     if (!tournamentId) return;
     
-    const savedTournament = localStorage.getItem(`tournament_${tournamentId}`);
-    if (savedTournament) {
-      const tournamentData = JSON.parse(savedTournament);
-      setTournament(tournamentData);
+    try {
+      // Carica i dati aggiornati da Supabase
+      const { data, error } = await supabase
+        .from('tournaments')
+        .select('*')
+        .eq('id', tournamentId)
+        .single();
+
+      if (error) {
+        console.error('Error loading tournament:', error);
+        toast({
+          title: "Errore nel caricamento del torneo",
+          description: "Non è stato possibile caricare i dati del torneo. Riprova più tardi.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (!data) {
+        console.error('No tournament found with ID:', tournamentId);
+        navigate('/');
+        return;
+      }
+
+      // Converti i nomi delle colonne da snake_case a camelCase
+      const formattedData: TournamentData = {
+        id: data.id,
+        name: data.name,
+        participantCount: data.participant_count,
+        inviteCode: data.invite_code,
+        status: data.status,
+        createdAt: data.created_at,
+        players: data.players || [],
+        rounds: data.rounds || [],
+        currentRound: data.current_round || 0
+      };
+
+      console.log('Loaded tournament data:', formattedData);
+      setTournament(formattedData);
+      
+      // Salva i dati nel localStorage
+      localStorage.setItem(`tournament_${tournamentId}`, JSON.stringify(formattedData));
       
       // Check if player has already submitted for current round
-      if (tournamentData.rounds.length > 0) {
-        const currentRound = tournamentData.rounds[tournamentData.currentRound];
+      if (formattedData.rounds.length > 0) {
+        const currentRound = formattedData.rounds[formattedData.currentRound];
         if (currentRound) {
           const savedPlayerId = localStorage.getItem(`player_${tournamentId}`);
           if (savedPlayerId) {
@@ -63,6 +102,13 @@ const PlayerDashboard = () => {
           }
         }
       }
+    } catch (error) {
+      console.error('Error loading tournament:', error);
+      toast({
+        title: "Errore nel caricamento del torneo",
+        description: "Si è verificato un errore imprevisto. Riprova più tardi.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -77,6 +123,11 @@ const PlayerDashboard = () => {
     
     setPlayerId(savedPlayerId);
     loadTournament();
+
+    // Imposta un intervallo per aggiornare i dati ogni 5 secondi
+    const interval = setInterval(loadTournament, 5000);
+
+    return () => clearInterval(interval);
   }, [tournamentId, navigate]);
 
   const submitPosition = () => {
